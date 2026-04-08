@@ -1,11 +1,11 @@
 const nodemailer = require('nodemailer');
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  host: process.env.SMTP_HOST || 'smtp.resend.com',
   port: process.env.SMTP_PORT || 587,
   secure: false,
   auth: {
-    user: process.env.SMTP_USER,
+    user: process.env.SMTP_USER || 'resend',
     pass: process.env.SMTP_PASS,
   },
 });
@@ -14,7 +14,7 @@ async function sendVerificationEmail(email, token) {
   const verifyUrl = `${process.env.APP_URL || 'http://localhost:10000'}/verify/${token}`;
   
   await transporter.sendMail({
-    from: '"DormToHome" <noreply@dormtohome.com>',
+    from: 'DormToHome <onboarding@resend.dev>',
     to: email,
     subject: 'Verify your DormToHome account',
     html: `
