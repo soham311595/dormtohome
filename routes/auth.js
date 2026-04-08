@@ -35,7 +35,12 @@ router.post('/register', async (req, res) => {
         [uuidv4(), id, guardian_name||'Guardian', guardian_email||'', guardian_phone||'', checkpoint_notifs ? 1 : 0]);
     }
     
-    sendVerificationEmail(email, verificationToken).catch(console.error);
+    try {
+      await sendVerificationEmail(email, verificationToken);
+      console.log(`[EMAIL] Verification email sent to ${email}`);
+    } catch (e) {
+      console.error(`[EMAIL] Failed to send verification email:`, e.message);
+    }
     
     res.json({ message: 'Registration successful. Please check your email to verify your account.' });
   } catch (e) { res.status(500).json({ error: e.message }); }
