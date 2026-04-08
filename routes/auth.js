@@ -71,8 +71,9 @@ router.post('/login', async (req, res) => {
 
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await get('SELECT id,first_name,last_name,email,phone,role FROM users WHERE id=$1', [req.user.id]);
+    const user = await get('SELECT id,first_name,last_name,email,phone,role,email_verified FROM users WHERE id=$1', [req.user.id]);
     if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user.email_verified) return res.status(403).json({ error: 'Email not verified' });
     res.json(user);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
