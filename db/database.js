@@ -31,10 +31,7 @@ async function createSchema() {
       last_name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       phone TEXT,
-      password_hash TEXT NOT NULL,
       "role" TEXT NOT NULL CHECK("role" IN ('passenger','driver')),
-      email_verified BOOLEAN DEFAULT FALSE,
-      verification_token TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -140,7 +137,7 @@ async function seedDatabase() {
   if (existing) { console.log('[DB] Already seeded, skipping'); return; }
 
   console.log('[DB] Seeding demo data...');
-  const pw = await bcrypt.hash('password123', 10);
+  const pw = 'password123';
 
   const users = [
     { id:'u-passenger-1', first:'Alex',   last:'Johnson', email:'alex@tamu.edu',         role:'passenger' },
@@ -150,8 +147,8 @@ async function seedDatabase() {
   ];
   for (const u of users) {
     await run(
-      `INSERT INTO users (id,first_name,last_name,email,phone,password_hash,"role",email_verified) VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE)`,
-      [u.id, u.first, u.last, u.email, '5550000000', pw, u.role]
+      `INSERT INTO users (id,first_name,last_name,email,phone,"role") VALUES ($1,$2,$3,$4,$5,$6)`,
+      [u.id, u.first, u.last, u.email, '5550000000', u.role]
     );
   }
 
