@@ -20,6 +20,7 @@ router.post('/register', async (req, res) => {
     if (!['passenger','driver'].includes(role))
       return res.status(400).json({ error: 'Invalid role' });
 
+    console.log('[REGISTER] Checking existing user:', email);
     const { data: existingUser } = await supabase
       .from('users')
       .select('id')
@@ -28,6 +29,7 @@ router.post('/register', async (req, res) => {
     
     if (existingUser) return res.status(409).json({ error: 'Email already registered' });
 
+    console.log('[REGISTER] Creating Supabase auth user:', email);
     const { data: authData, error } = await supabase.auth.signUp({
       email,
       password,
@@ -36,8 +38,12 @@ router.post('/register', async (req, res) => {
       }
     });
 
-    if (error) return res.status(400).json({ error: error.message });
+    if (error) {
+      console.error('[REGISTER] Auth error:', error);
+      return res.status(400).json({ error: error.message });
+    }
 
+    console.log('[REGISTER] Creating profile for:', authData.user.id);
     // Create profile immediately
     await run(
       `INSERT INTO users (id,first_name,last_name,email,phone,"role") VALUES ($1,$2,$3,$4,$5,$6)`,
@@ -49,8 +55,12 @@ router.post('/register', async (req, res) => {
         [uuidv4(), authData.user.id, guardian_name || 'Guardian', guardian_email || '', guardian_phone || '', checkpoint_notifs ? 1 : 0]);
     }
 
+    console.log('[REGISTER] Success for:', email);
     res.json({ message: 'Registration successful. Please check your email to verify your account.' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { 
+    console.error('[REGISTER] Exception:', e);
+    res.status(500).json({ error: e.message }); 
+  }
 });
 
 router.post('/login', async (req, res) => {
