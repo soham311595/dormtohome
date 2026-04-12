@@ -22,13 +22,15 @@ async function enrichRoute(r) {
 // GET /api/routes
 router.get('/', async (req, res) => {
   try {
-    const { from, to, date, min_seats, route_number } = req.query;
+    const { from, to, date, date_from, date_to, min_seats, route_number } = req.query;
     let sql = `SELECT * FROM routes WHERE status != 'cancelled'`;
     const params = [];
     let i = 1;
     if (from)         { sql += ` AND LOWER(from_city) LIKE $${i++}`;   params.push(`%${from.toLowerCase()}%`); }
     if (to)           { sql += ` AND LOWER(to_city) LIKE $${i++}`;     params.push(`%${to.toLowerCase()}%`);   }
     if (date)         { sql += ` AND departure_date = $${i++}`;         params.push(date);                      }
+    if (date_from)    { sql += ` AND departure_date >= $${i++}`;        params.push(date_from);                  }
+    if (date_to)      { sql += ` AND departure_date <= $${i++}`;        params.push(date_to);                    }
     if (route_number) { sql += ` AND route_number LIKE $${i++}`;        params.push(`%${route_number.toUpperCase()}%`); }
     sql += ' ORDER BY departure_date, departure_time';
     let routes = await all(sql, params);

@@ -21,10 +21,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+const rateLimit = require('express-rate-limit');
+const signupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many accounts created. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 // Expose JWT_SECRET to routes via app.locals
 app.locals.JWT_SECRET = JWT_SECRET;
 
-app.use('/api/auth', require('./routes/auth'));
+const authRouter = require('./routes/auth');
+app.post('/api/auth/register', signupLimiter);
+app.use('/api/auth', authRouter);
 app.use('/api/routes', require('./routes/routes'));
 app.use('/api', require('./routes/api'));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));

@@ -84,6 +84,7 @@ router.post('/requests', authMiddleware, requireRole('passenger'), async (req, r
       `INSERT INTO route_requests (id,requester_id,from_city,to_city,requested_date,requested_time,supporter_count,status) VALUES ($1,$2,$3,$4,$5,$6,1,'open')`,
       [id, req.user.id, from_city, to_city, requested_date||'', requested_time||'']
     );
+    await run('INSERT INTO route_request_supports VALUES ($1,$2)', [id, req.user.id]);
     res.json({ id, from_city, to_city, supporter_count: 1 });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -151,6 +152,15 @@ router.get('/guardians', authMiddleware, requireRole('passenger'), async (req, r
 router.post('/guardians', authMiddleware, requireRole('passenger'), async (req, res) => {
   try {
     const { name, email, phone, checkpoint_notifs } = req.body;
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Guardian name is required' });
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (email && email.trim() && !emailRegex.test(email.trim()))
+      return res.status(400).json({ error: 'Invalid guardian email format' });
+    if (phone && phone.trim()) {
+      const digits = phone.replace(/[\s\-\(\)\+\.]/g, '');
+      if (!/^1?\d{10}$/.test(digits))
+        return res.status(400).json({ error: 'Invalid guardian phone number' });
+    }
     const id = uuidv4();
     await run('INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs) VALUES ($1,$2,$3,$4,$5,$6)',
       [id, req.user.id, name, email||'', phone||'', checkpoint_notifs ? 1 : 0]);

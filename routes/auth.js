@@ -20,6 +20,24 @@ router.post('/register', async (req, res) => {
     if (!['passenger','driver'].includes(role))
       return res.status(400).json({ error: 'Invalid role' });
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim()))
+      return res.status(400).json({ error: 'Invalid email format' });
+
+    if (phone && phone.trim()) {
+      const digits = phone.replace(/[\s\-\(\)\+\.]/g, '');
+      if (!/^1?\d{10}$/.test(digits))
+        return res.status(400).json({ error: 'Invalid phone number — must be 10 digits' });
+    }
+
+    if (guardian_email && guardian_email.trim() && !emailRegex.test(guardian_email.trim()))
+      return res.status(400).json({ error: 'Invalid guardian email format' });
+    if (guardian_phone && guardian_phone.trim()) {
+      const gDigits = guardian_phone.replace(/[\s\-\(\)\+\.]/g, '');
+      if (!/^1?\d{10}$/.test(gDigits))
+        return res.status(400).json({ error: 'Invalid guardian phone number' });
+    }
+
     console.log('[REGISTER] Checking existing user:', email);
     const { data: existingUser } = await supabase
       .from('users')

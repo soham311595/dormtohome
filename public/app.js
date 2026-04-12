@@ -94,6 +94,7 @@ async function doLogin() {
   const email = document.getElementById('login-email').value.trim();
   const pass = document.getElementById('login-pass').value;
   if (!email || !pass) { toast('Enter email and password', 'error'); return; }
+  if (!isValidEmail(email)) { toast('Please enter a valid email address', 'error'); return; }
   const btn = document.getElementById('login-btn');
   btn.innerHTML = '<span class="spinner"></span>';
   btn.disabled = true;
@@ -117,6 +118,18 @@ async function doLogin() {
   btn.innerHTML = 'Sign In'; btn.disabled = false;
 }
 
+function isValidEmail(email) {
+  if (!email || email.trim() === '') return true;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
+
+function isValidPhone(phone) {
+  if (!phone || phone.trim() === '') return true;
+  const digits = phone.replace(/[\s\-\(\)\+\.]/g, '');
+  return (digits.length === 10 && /^\d{10}$/.test(digits)) ||
+         (digits.length === 11 && /^1\d{10}$/.test(digits));
+}
+
 async function doRegister() {
   const first = document.getElementById('reg-first').value.trim();
   const last = document.getElementById('reg-last').value.trim();
@@ -124,14 +137,22 @@ async function doRegister() {
   const phone = document.getElementById('reg-phone').value.trim();
   const pass = document.getElementById('reg-pass').value;
   if (!first || !last || !email || !pass) { toast('Fill in all required fields', 'error'); return; }
+  if (!isValidEmail(email)) { toast('Please enter a valid email address', 'error'); return; }
+  if (!isValidPhone(phone)) { toast('Please enter a valid 10-digit phone number', 'error'); return; }
+
+  const gEmail = document.getElementById('reg-g-email')?.value;
+  const gPhone = document.getElementById('reg-g-phone')?.value;
+  if (gEmail && !isValidEmail(gEmail)) { toast('Guardian email is not valid', 'error'); return; }
+  if (gPhone && !isValidPhone(gPhone)) { toast('Guardian phone number is not valid', 'error'); return; }
+
   const btn = document.getElementById('reg-btn');
   btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
   try {
     const body = {
       first_name: first, last_name: last, email, phone, password: pass, role: regType,
       guardian_name: document.getElementById('reg-g-name')?.value,
-      guardian_email: document.getElementById('reg-g-email')?.value,
-      guardian_phone: document.getElementById('reg-g-phone')?.value,
+      guardian_email: gEmail,
+      guardian_phone: gPhone,
       checkpoint_notifs: document.getElementById('chk-cp')?.classList.contains('checked'),
     };
     const data = await api('POST', '/auth/register', body, false);
@@ -221,7 +242,6 @@ function buildRoutesPage(routes, reqs) {
   return `
   <div class="page-header">
     <div><div class="page-title">Available Routes</div><div class="page-sub">Find and book your next ride home</div></div>
-    <button class="for-you-btn" onclick="showHelp('foryou')">★ For You<div class="fyi-q" onclick="event.stopPropagation();showHelp('foryou')">?</div></button>
   </div>
   <div class="tabs">
     <div class="tab active" onclick="switchTab(this,'tab-available','tab-requested')">Available Routes</div>
@@ -304,13 +324,16 @@ function buildReqCard(r) {
   return `<div class="req-card" id="req-${r.id}">
     <div>
       <div style="font-weight:600;color:var(--navy);margin-bottom:3px">${r.from_city} → ${r.to_city}</div>
-      <div class="text-sm text-muted">${r.requested_date || 'Flexible'} · ${r.requested_time || 'Any time'}</div>
+      <div class="text-sm text-muted">${r.requested_date ? new Date(r.requested_date + 'T00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : 'Flexible'}</div>
+      <div class="text-xs text-muted" style="margin-top:2px">🕐 Departs: ${r.requested_time || 'Any'}</div>
     </div>
     <div style="text-align:center">
       <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy)" id="rcount-${r.id}">${r.supporter_count}</div>
       <div class="text-xs text-muted">interested</div>
     </div>
-    <button class="btn btn-outline-gold btn-sm" id="rbtn-${r.id}" onclick="supportRequest('${r.id}')">Support Route</button>
+    ${S.user && r.requester_id === S.user.id
+      ? `<button class="btn btn-sm" style="background:var(--gray-200);color:var(--gray-500);cursor:default" disabled>Your Request</button>`
+      : `<button class="btn btn-outline-gold btn-sm" id="rbtn-${r.id}" onclick="supportRequest('${r.id}')">Support Route</button>`}
   </div>`;
 }
 
@@ -334,24 +357,39 @@ function filterRouteNum(val) {
 
 // ─── FILTER PANEL ────────────────────────────────────────
 let activeFilter = null;
+let savedFilters = {
+  departure: '',
+  arrival: '',
+  dateFrom: '',
+  dateTo: '',
+  time: [],
+  seats: '',
+};
 const TIMES = ['5–7 AM','7–9 AM','9–11 AM','11 AM–1 PM','1–3 PM','3–5 PM','5–7 PM','7–9 PM'];
 
 function openFilterPanel(type) {
   activeFilter = type;
-  const titles = { departure: 'Filter by Departure City', arrival: 'Filter by Arrival City', date: 'Filter by Date', time: 'Time of Day', seats: 'Minimum Seats' };
+  const titles = { departure: 'Filter by Departure City', arrival: 'Filter by Arrival City', date: 'Filter by Date Range', time: 'Filter by Departure Time of Day', seats: 'Minimum Seats' };
   document.getElementById('fp-title').textContent = titles[type];
   let html = '';
   if (type === 'departure' || type === 'arrival') {
+    const savedCity = type === 'departure' ? savedFilters.departure : savedFilters.arrival;
     html = `<input style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:.9rem;outline:none;color:var(--navy-dark)" placeholder="Search city..." oninput="fpCitySearch(this,'fp-cities')">
     <div id="fp-cities" style="border:1px solid var(--gray-200);border-radius:8px;margin-top:6px;max-height:200px;overflow-y:auto"></div>
-    <div id="fp-selected" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>`;
+    <div id="fp-selected" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
+      ${savedCity ? `<div class="filter-chip active" data-city="${savedCity}">${savedCity} <span onclick="this.parentElement.remove()" style="cursor:pointer;margin-left:4px">✕</span></div>` : ''}
+    </div>`;
   } else if (type === 'date') {
-    html = `<div class="two-col"><div><div class="form-label" style="color:var(--navy);font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px">From</div><input type="date" style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.9rem;color:var(--navy-dark)" id="fp-date-from"></div>
-    <div><div class="form-label" style="color:var(--navy);font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px">To</div><input type="date" style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.9rem;color:var(--navy-dark)" id="fp-date-to"></div></div>`;
+    html = `<p style="font-size:.8rem;color:var(--gray-400);margin-bottom:10px">Shows routes departing within this date range.</p>
+    <div class="two-col"><div><div class="form-label" style="color:var(--navy);font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px">From</div><input type="date" style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.9rem;color:var(--navy-dark)" id="fp-date-from" value="${savedFilters.dateFrom}"></div>
+    <div><div class="form-label" style="color:var(--navy);font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:6px">To</div><input type="date" style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px;font-size:.9rem;color:var(--navy-dark)" id="fp-date-to" value="${savedFilters.dateTo}"></div></div>`;
   } else if (type === 'time') {
-    html = `<p style="font-size:.82rem;color:var(--gray-400);margin-bottom:10px">Select one or more windows:</p><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${TIMES.map(t=>`<div style="padding:8px 6px;text-align:center;border:1px solid var(--gray-200);border-radius:8px;font-size:.78rem;cursor:pointer;transition:var(--transition)" onclick="this.classList.toggle('active');this.style.background=this.classList.contains('active')?'var(--gold)':'';this.style.color=this.classList.contains('active')?'var(--navy-dark)':'';this.style.borderColor=this.classList.contains('active')?'var(--gold)':'';">${t}</div>`).join('')}</div>`;
+    html = `<p style="font-size:.82rem;color:var(--gray-400);margin-bottom:10px">Filter by departure time of day:</p><div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">${TIMES.map(t => {
+      const isActive = savedFilters.time.includes(t);
+      return `<div style="padding:8px 6px;text-align:center;border:1px solid ${isActive ? 'var(--gold)' : 'var(--gray-200)'};border-radius:8px;font-size:.78rem;cursor:pointer;transition:var(--transition);background:${isActive ? 'var(--gold)' : ''};color:${isActive ? 'var(--navy-dark)' : ''}" class="${isActive ? 'active' : ''}" onclick="this.classList.toggle('active');this.style.background=this.classList.contains('active')?'var(--gold)':'';this.style.color=this.classList.contains('active')?'var(--navy-dark)':'';this.style.borderColor=this.classList.contains('active')?'var(--gold)':'var(--gray-200)';">${t}</div>`;
+    }).join('')}</div>`;
   } else if (type === 'seats') {
-    html = `<input type="number" min="1" max="44" placeholder="e.g. 4" style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:.9rem;color:var(--navy-dark)" id="fp-seats">`;
+    html = `<input type="number" min="1" max="44" placeholder="e.g. 4" style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:.9rem;color:var(--navy-dark)" id="fp-seats" value="${savedFilters.seats}">`;
   }
   document.getElementById('fp-body').innerHTML = html;
   document.getElementById('filter-panel-overlay').style.display = 'block';
@@ -377,27 +415,126 @@ function fpAddCity(name, input, selId) {
 }
 
 async function applyFilterPanel() {
-  closeFilterPanel();
-  // Rebuild query from active filter chips
-  const chips = document.querySelectorAll('#fp-selected .filter-chip.active');
-  let city = chips.length ? chips[0].dataset.city?.split(',')[0]?.trim() : null;
-  const params = new URLSearchParams();
-  if (activeFilter === 'departure' && city) params.set('from', city);
-  if (activeFilter === 'arrival' && city) params.set('to', city);
+  if (activeFilter === 'departure') {
+    const chips = document.querySelectorAll('#fp-selected .filter-chip.active');
+    savedFilters.departure = chips.length ? chips[0].dataset.city?.split(',')[0]?.trim() : '';
+  }
+  if (activeFilter === 'arrival') {
+    const chips = document.querySelectorAll('#fp-selected .filter-chip.active');
+    savedFilters.arrival = chips.length ? chips[0].dataset.city?.split(',')[0]?.trim() : '';
+  }
   if (activeFilter === 'date') {
-    const from = document.getElementById('fp-date-from')?.value;
-    if (from) params.set('date', from);
+    savedFilters.dateFrom = document.getElementById('fp-date-from')?.value || '';
+    savedFilters.dateTo = document.getElementById('fp-date-to')?.value || '';
+  }
+  if (activeFilter === 'time') {
+    savedFilters.time = [];
+    document.querySelectorAll('#fp-body .active').forEach(el => {
+      savedFilters.time.push(el.textContent.trim());
+    });
   }
   if (activeFilter === 'seats') {
-    const min = document.getElementById('fp-seats')?.value;
-    if (min) params.set('min_seats', min);
+    savedFilters.seats = document.getElementById('fp-seats')?.value || '';
   }
+
+  closeFilterPanel();
+
+  const reqTabActive = document.getElementById('tab-requested')?.classList.contains('active');
+  if (reqTabActive) {
+    applyRequestFilters();
+    return;
+  }
+
+  const params = new URLSearchParams();
+  if (savedFilters.departure) params.set('from', savedFilters.departure);
+  if (savedFilters.arrival) params.set('to', savedFilters.arrival);
+  if (savedFilters.dateFrom) params.set('date_from', savedFilters.dateFrom);
+  if (savedFilters.dateTo) params.set('date_to', savedFilters.dateTo);
+  if (savedFilters.seats) params.set('min_seats', savedFilters.seats);
+
   try {
-    const routes = await api('GET', `/routes?${params.toString()}`, null, false);
+    let routes = await api('GET', `/routes?${params.toString()}`, null, false);
+
+    if (savedFilters.time.length > 0) {
+      routes = routes.filter(r => {
+        if (!r.departure_time) return false;
+        const hour = parseInt(r.departure_time.split(':')[0]);
+        return savedFilters.time.some(t => {
+          if (t.includes('5–7 AM'))  return hour >= 5 && hour < 7;
+          if (t.includes('7–9 AM'))  return hour >= 7 && hour < 9;
+          if (t.includes('9–11 AM')) return hour >= 9 && hour < 11;
+          if (t.includes('11 AM–1 PM')) return hour >= 11 && hour < 13;
+          if (t.includes('1–3 PM'))  return hour >= 13 && hour < 15;
+          if (t.includes('3–5 PM'))  return hour >= 15 && hour < 17;
+          if (t.includes('5–7 PM'))  return hour >= 17 && hour < 19;
+          if (t.includes('7–9 PM'))  return hour >= 19 && hour < 21;
+          return false;
+        });
+      });
+    }
+
     const list = document.getElementById('routes-list');
     if (list) list.innerHTML = routes.map(buildRouteCard).join('') || emptyState('No routes match your filter');
-    toast(`Filter applied`, 'success');
+    toast('Filter applied', 'success');
+
+    updateClearFilterBtn();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+function updateClearFilterBtn() {
+  let existing = document.getElementById('clear-filters-btn');
+  const hasFilters = savedFilters.departure || savedFilters.arrival || savedFilters.dateFrom ||
+                     savedFilters.dateTo || savedFilters.time.length || savedFilters.seats;
+  if (hasFilters && !existing) {
+    const bar = document.querySelector('#tab-available .filter-bar');
+    if (bar) {
+      const btn = document.createElement('div');
+      btn.id = 'clear-filters-btn';
+      btn.className = 'filter-chip';
+      btn.style.cssText = 'background:var(--error);color:white;border-color:var(--error);cursor:pointer';
+      btn.textContent = '✕ Clear All';
+      btn.onclick = clearAllFilters;
+      bar.appendChild(btn);
+    }
+  } else if (!hasFilters && existing) {
+    existing.remove();
+  }
+}
+
+async function clearAllFilters() {
+  savedFilters = { departure:'', arrival:'', dateFrom:'', dateTo:'', time:[], seats:'' };
+  const btn = document.getElementById('clear-filters-btn');
+  if (btn) btn.remove();
+  try {
+    const routes = await api('GET', '/routes', null, false);
+    const list = document.getElementById('routes-list');
+    if (list) list.innerHTML = routes.map(buildRouteCard).join('') || emptyState('No routes found');
+    toast('Filters cleared', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function applyRequestFilters() {
+  const reqList = document.getElementById('req-list');
+  if (!reqList || !S.requests) return;
+
+  let filtered = S.requests;
+
+  if (savedFilters.departure) {
+    filtered = filtered.filter(r => r.from_city.toLowerCase().includes(savedFilters.departure.toLowerCase()));
+  }
+  if (savedFilters.arrival) {
+    filtered = filtered.filter(r => r.to_city.toLowerCase().includes(savedFilters.arrival.toLowerCase()));
+  }
+  if (savedFilters.dateFrom) {
+    filtered = filtered.filter(r => r.requested_date >= savedFilters.dateFrom);
+  }
+  if (savedFilters.dateTo) {
+    filtered = filtered.filter(r => r.requested_date <= savedFilters.dateTo);
+  }
+
+  reqList.innerHTML = filtered.map(buildReqCard).join('') || emptyState('No requests match your filter');
+  toast('Filter applied', 'success');
+  updateClearFilterBtn();
 }
 
 function closeFilterPanel() {
@@ -463,21 +600,19 @@ async function startBooking(routeId) {
 function buildSeatModal(route, taken) {
   let html = `<div style="margin-bottom:16px"><div class="text-sm text-muted">${route.from_city} → ${route.to_city} · ${route.departure_date} · <strong style="color:var(--gold)">$${route.price_per_seat}</strong></div></div>`;
   html += '<div class="seat-map">';
-  const ROWS = ['1','2','3','4','5','6','7','8','9','10','11'];
+  const ROWS = ['3','4','5','6','7','8','9','10','11'];
   ROWS.forEach(row => {
     html += '<div class="seat-row">';
     ['A','B'].forEach(col => {
       const sid = row + col;
       const isTaken = taken.includes(sid);
-      const isPrem = row === '1' || row === '2';
-      html += `<div class="seat${isTaken?' taken':''}${isPrem?' premium':''}" id="seat-${sid}" onclick="${isTaken ? '' : `selectSeat('${sid}')`}">${sid}</div>`;
+      html += `<div class="seat${isTaken?' taken':''}" id="seat-${sid}" onclick="${isTaken ? '' : `selectSeat('${sid}')`}">${sid}</div>`;
     });
     html += '<div class="seat-aisle"></div>';
     ['C','D'].forEach(col => {
       const sid = row + col;
       const isTaken = taken.includes(sid);
-      const isPrem = row === '1' || row === '2';
-      html += `<div class="seat${isTaken?' taken':''}${isPrem?' premium':''}" id="seat-${sid}" onclick="${isTaken ? '' : `selectSeat('${sid}')`}">${sid}</div>`;
+      html += `<div class="seat${isTaken?' taken':''}" id="seat-${sid}" onclick="${isTaken ? '' : `selectSeat('${sid}')`}">${sid}</div>`;
     });
     html += '</div>';
   });
@@ -486,7 +621,6 @@ function buildSeatModal(route, taken) {
     <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:white;border:2px solid var(--gray-300)"></div>Available</div>
     <div style="display:flex;align-items:center;gap:6px;font-size:.75px;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gold)"></div>Selected</div>
     <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gray-200)"></div>Taken</div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:white;border:2px solid var(--gold-light)"></div>Premium (rows 1-2)</div>
   </div>`;
   html += `<div style="background:var(--gray-100);border-radius:8px;padding:10px 14px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px" id="seat-selected-info">No seat selected yet.</div>`;
   html += `<button class="btn btn-gold btn-full btn-lg" onclick="confirmBooking()">Confirm Booking</button>`;
@@ -602,7 +736,14 @@ function updateBusMarker(lat, lon) {
 async function renderTickets() {
   try {
     const bookings = await api('GET', '/bookings/mine');
+    S.allBookings = bookings;
     document.getElementById('p-content').innerHTML = buildTicketsPage(bookings);
+    bookings.forEach(b => {
+      const canvas = document.getElementById(`qr-mini-${b.id}`);
+      if (canvas && typeof QRCode !== 'undefined') {
+        QRCode.toCanvas(canvas, `dormtohome:ticket:${b.id}`, { width: 60, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
+      }
+    });
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -610,34 +751,66 @@ function buildTicketsPage(bookings) {
   if (!bookings.length) return `<div class="page-header"><div><div class="page-title">My Tickets</div></div></div>${emptyState('No tickets yet — book a route!')}`;
   return `
   <div class="page-header"><div><div class="page-title">My Tickets</div><div class="page-sub">Tap a ticket to view QR code</div></div></div>
-  <div class="tabs"><div class="tab active">Upcoming</div><div class="tab">Past</div></div>
-  <div style="display:flex;flex-direction:column;gap:12px">
-    ${bookings.map(b => `
-    <div style="background:var(--white);border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:1fr 90px;cursor:pointer;transition:var(--transition)" onclick="openTicket('${b.id}','${b.route_number}','${b.from_city}','${b.to_city}','${b.departure_date}','${b.departure_time}','${b.seat_number}','${b.driver_name}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--gray-200)'">
-      <div style="padding:18px 22px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
-          <span class="route-num">${b.route_number}</span>
-          <span class="badge ${b.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${b.checkin_status === 'checked' ? '✓ Checked In' : 'Pending'}</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-          <div><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.from_city}</div><div class="text-xs text-muted">${b.departure_time}</div></div>
-          <div style="color:var(--gold);font-size:1.2rem;flex:1;text-align:center">→</div>
-          <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.to_city}</div><div class="text-xs text-muted">${b.arrival_time}</div></div>
-        </div>
-        <div style="display:flex;gap:14px;font-size:.78rem;color:var(--gray-400)"><span>📅 ${b.departure_date}</span><span>💺 Seat ${b.seat_number}</span><span>🧑‍✈️ ${b.driver_name}</span></div>
-      </div>
-      <div style="background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:8px">
-        <div style="font-size:.6rem;color:rgba(255,255,255,.5);letter-spacing:.08em">SCAN</div>
-        ${miniQR()}
-        <div style="font-size:.58rem;color:rgba(255,255,255,.4)">${b.route_number}</div>
-      </div>
-    </div>`).join('')}
+  <div class="tabs"><div class="tab active" onclick="switchTicketTab('upcoming')">Active Tickets</div><div class="tab" onclick="switchTicketTab('past')">Former Tickets</div></div>
+  <div style="display:flex;flex-direction:column;gap:12px" id="tickets-list">
+    ${bookings.map(b => buildTicketCard(b)).join('')}
   </div>`;
 }
 
-function miniQR() {
-  const cells = Array.from({ length: 49 }, (_, i) => [0,1,2,3,4,5,6,7,14,21,28,35,42,43,44,45,46,47,48].includes(i) ? 1 : Math.random() > 0.5 ? 1 : 0);
-  return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1.5px;width:60px;height:60px;background:white;padding:5px;border-radius:5px">${cells.map(c => `<div style="background:${c ? '#0B1D3A' : 'white'};border-radius:1px"></div>`).join('')}</div>`;
+function buildTicketCard(b) {
+  return `<div style="background:var(--white);border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:1fr 90px;cursor:pointer;transition:var(--transition)" onclick="openTicket('${b.id}','${b.route_number}','${b.from_city}','${b.to_city}','${b.departure_date}','${b.departure_time}','${b.seat_number}','${b.driver_name}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+    <div style="padding:18px 22px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+        <span class="route-num">${b.route_number}</span>
+        <span class="badge ${b.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${b.checkin_status === 'checked' ? '✓ Checked In' : 'Pending'}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.from_city}</div><div class="text-xs text-muted">${b.departure_time}</div></div>
+        <div style="color:var(--gold);font-size:1.2rem;flex:1;text-align:center">→</div>
+        <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.to_city}</div><div class="text-xs text-muted">${b.arrival_time}</div></div>
+      </div>
+      <div style="display:flex;gap:14px;font-size:.78rem;color:var(--gray-400)"><span>📅 ${b.departure_date}</span><span>💺 Seat ${b.seat_number}</span><span>🧑‍✈️ ${b.driver_name}</span></div>
+    </div>
+    <div style="background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:8px">
+      <div style="font-size:.6rem;color:rgba(255,255,255,.5);letter-spacing:.08em">SCAN</div>
+      ${miniQR(b.id)}
+      <div style="font-size:.58rem;color:rgba(255,255,255,.4)">${b.route_number}</div>
+    </div>
+  </div>`;
+}
+
+function switchTicketTab(tab) {
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  const list = document.getElementById('tickets-list');
+  if (!list) return;
+  const bookings = S.allBookings || [];
+  const now = new Date();
+  let filtered;
+  if (tab === 'past') {
+    filtered = bookings.filter(b => new Date(b.departure_date) < now);
+    if (!filtered.length) {
+      list.innerHTML = filtered.map(b => buildTicketCard(b)).join('') || emptyState('No former tickets. Your completed trips will appear here.');
+      return;
+    }
+  } else {
+    filtered = bookings.filter(b => new Date(b.departure_date) >= now);
+    if (!filtered.length) {
+      list.innerHTML = filtered.map(b => buildTicketCard(b)).join('') || emptyState('No active tickets — book a route!');
+      return;
+    }
+  }
+  list.innerHTML = filtered.map(b => buildTicketCard(b)).join('');
+  filtered.forEach(b => {
+    const canvas = document.getElementById(`qr-mini-${b.id}`);
+    if (canvas && typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(canvas, `dormtohome:ticket:${b.id}`, { width: 60, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
+    }
+  });
+}
+
+function miniQR(bookingId) {
+  return `<canvas id="qr-mini-${bookingId || 'x'}" width="60" height="60" style="border-radius:5px"></canvas>`;
 }
 
 function openTicket(id, num, from, to, date, time, seat, driver) {
@@ -648,13 +821,8 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
       <div class="text-sm text-muted">${date} · ${time}</div>
     </div>
     <div style="background:var(--navy);border-radius:16px;padding:24px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
-      <div style="background:white;padding:16px;border-radius:12px">
-        <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:2px;width:144px;height:144px">
-          ${Array.from({length:81},(_,i) => {
-            const c = [0,1,2,3,4,5,6,7,8,9,17,18,27,36,45,54,63,72,73,74,75,76,77,78,79,80].includes(i) ? 1 : Math.random() > 0.45 ? 1 : 0;
-            return `<div style="background:${c?'#0B1D3A':'white'};border-radius:1px"></div>`;
-          }).join('')}
-        </div>
+      <div style="background:white;padding:16px;border-radius:12px;display:flex;align-items:center;justify-content:center">
+        <canvas id="qr-ticket-large" width="144" height="144"></canvas>
       </div>
     </div>
     <div style="text-align:center;font-size:.78rem;color:var(--gray-400);margin-bottom:16px">Show this to your driver at boarding</div>
@@ -666,6 +834,12 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
       🚌 <strong>Booking ID:</strong> ${id.substring(0,8).toUpperCase()}
     </div>`;
   openModal('modal-ticket');
+  setTimeout(() => {
+    const canvas = document.getElementById('qr-ticket-large');
+    if (canvas && typeof QRCode !== 'undefined') {
+      QRCode.toCanvas(canvas, `dormtohome:ticket:${id}`, { width: 144, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
+    }
+  }, 100);
 }
 
 // ─── MESSAGES ────────────────────────────────────────────
@@ -804,7 +978,7 @@ function buildAccountPage(user, guardians) {
       </div>
       <div class="card">
         <div class="section-title">Notifications</div>
-        ${[['Arrival alerts (15 min)','notif-arrival'],['Checkpoint updates','notif-cp'],['New route alerts','notif-routes'],['Chat messages','notif-chat']].map(([label,id])=>`
+        ${[['Arrival alerts (15 min)','notif-arrival'],['New route alerts','notif-routes'],['Chat messages','notif-chat']].map(([label,id])=>`
         <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
           <span style="font-size:.875rem;color:var(--navy-dark)">${label}</span>
           <div class="toggle on" onclick="this.classList.toggle('on')"></div>
@@ -851,20 +1025,67 @@ function buildGuardianCard(g) {
       <div class="text-xs text-muted">${contactInfo}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
         <div class="checkbox ${g.checkpoint_notifs ? 'checked' : ''}" onclick="toggleGuardianNotif('${g.id}',this)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
-        <span class="text-xs text-muted">Checkpoints</span>
+        <span class="text-xs text-muted">Send Checkpoint Notifications</span>
         <button class="help-icon" onclick="showHelp('checkpoint')">?</button>
       </div>
     </div>
-    <button class="btn btn-danger btn-sm" onclick="deleteGuardian('${g.id}')">Remove</button>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <button class="btn btn-outline-gold btn-sm" onclick="editGuardian('${g.id}','${g.name}','${g.email || ''}','${g.phone || ''}')">Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteGuardian('${g.id}','${g.name}')">Remove</button>
+    </div>
   </div>`;
 }
 
+function editGuardian(id, name, email, phone) {
+  const card = document.getElementById(`gc-${id}`);
+  if (!card) return;
+  card.innerHTML = `
+    <div style="width:100%;background:var(--gray-100);border-radius:10px;padding:14px">
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Name</label><input class="form-input" style="color:var(--navy-dark);background:white" id="ge-name-${id}" value="${name}"></div>
+      <div class="two-col" style="margin-top:8px">
+        <div class="form-group"><label class="form-label" style="color:var(--navy)">Email</label><input class="form-input" style="color:var(--navy-dark);background:white" id="ge-email-${id}" value="${email}" type="email"></div>
+        <div class="form-group"><label class="form-label" style="color:var(--navy)">Phone</label><input class="form-input" style="color:var(--navy-dark);background:white" id="ge-phone-${id}" value="${phone}"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn btn-gold btn-sm" onclick="saveGuardianEdit('${id}')">Save</button>
+        <button class="btn btn-sm" style="background:var(--gray-200);color:var(--gray-600)" onclick="renderPassengerAccount()">Cancel</button>
+      </div>
+    </div>`;
+}
+
+async function saveGuardianEdit(id) {
+  const name = document.getElementById(`ge-name-${id}`).value;
+  const email = document.getElementById(`ge-email-${id}`).value;
+  const phone = document.getElementById(`ge-phone-${id}`).value;
+
+  if (email && !isValidEmail(email)) { toast('Invalid guardian email', 'error'); return; }
+  if (phone && !isValidPhone(phone)) { toast('Invalid guardian phone number', 'error'); return; }
+  if (!name.trim()) { toast('Guardian name is required', 'error'); return; }
+
+  try {
+    await api('PATCH', `/guardians/${id}`, { name, email, phone });
+    toast('Guardian updated', 'success');
+    renderPassengerAccount();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function confirmDeleteGuardian(id, name) {
+  if (confirm(`Are you sure you want to remove ${name} as your guardian? They will no longer receive checkpoint notifications.`)) {
+    deleteGuardian(id);
+  }
+}
+
 async function saveProfile() {
+  const phone = document.getElementById('acc-phone').value;
+  if (phone && !isValidPhone(phone)) {
+    toast('Please enter a valid 10-digit phone number', 'error');
+    return;
+  }
   try {
     await api('PUT', '/auth/me', {
       first_name: document.getElementById('acc-first').value,
       last_name: document.getElementById('acc-last').value,
-      phone: document.getElementById('acc-phone').value,
+      phone: phone,
     });
     toast('Profile saved', 'success');
   } catch (e) { toast(e.message, 'error'); }
@@ -873,11 +1094,19 @@ async function saveProfile() {
 function addGuardianForm() { document.getElementById('guardian-add-form').style.display = ''; }
 
 async function saveGuardian() {
+  const name = document.getElementById('g-add-name').value;
+  const email = document.getElementById('g-add-email').value;
+  const phone = document.getElementById('g-add-phone').value;
+
+  if (!name.trim()) { toast('Guardian name is required', 'error'); return; }
+  if (email && !isValidEmail(email)) { toast('Invalid guardian email', 'error'); return; }
+  if (phone && !isValidPhone(phone)) { toast('Invalid guardian phone number', 'error'); return; }
+
   try {
     const g = await api('POST', '/guardians', {
-      name: document.getElementById('g-add-name').value,
-      email: document.getElementById('g-add-email').value,
-      phone: document.getElementById('g-add-phone').value,
+      name: name,
+      email: email,
+      phone: phone,
       checkpoint_notifs: document.getElementById('g-add-cp').classList.contains('checked'),
     });
     document.getElementById('guardian-list').innerHTML += buildGuardianCard(g);
@@ -999,7 +1228,7 @@ function buildDriverRoutesPage(routes) {
           <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="openSendNotif('${r.id}')">Notify</button>
         </div>
       </div>
-    </div>`).join('') : emptyState('No routes yet — create your first route!')}
+    </div>
   </div>`;
 }
 
@@ -1285,7 +1514,15 @@ function buildRequestedPage(reqs) {
         <button class="btn btn-gold btn-sm" onclick="acceptRequest('${r.from_city}','${r.to_city}','${r.requested_date}','${r.requested_time}')">Accept & Create</button>
         <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)">Decline</button>
       </div>
-    </div>`).join('') || emptyState('No passenger requests yet')}
+      <div class="card">
+        <div class="section-title">Payment Methods</div>
+        <div style="text-align:center;padding:20px;color:var(--gray-400)">
+          <div style="font-size:2rem;margin-bottom:8px">💳</div>
+          <div class="text-sm text-muted">Payment method setup coming soon.</div>
+          <div class="text-xs text-muted" style="margin-top:4px">You'll be able to securely add and manage payment methods here.</div>
+        </div>
+      </div>
+    </div>
   </div>`;
 }
 
@@ -1423,32 +1660,48 @@ function showRequestStep() {
   if (S.reqStep === 1) html += `<div class="section-title">Where are you departing from?</div>
     <div style="position:relative"><input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="req-from" placeholder="Search city..." value="${S.reqData.from_city || ''}" oninput="autocityCreate(this,'req-from-dd')">
     <div class="city-dropdown" id="req-from-dd"></div></div>
-    <button class="btn btn-gold mt-16" style="margin-top:16px" onclick="reqNext()">Next →</button>`;
+    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
 
   else if (S.reqStep === 2) html += `<div class="section-title">Where are you going?</div>
     <div style="position:relative"><input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="req-to" placeholder="Search city..." value="${S.reqData.to_city || ''}" oninput="autocityCreate(this,'req-to-dd')">
     <div class="city-dropdown" id="req-to-dd"></div></div>
-    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
+    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
 
   else if (S.reqStep === 3) html += `<div class="section-title">What date do you need this route?</div>
     <input class="form-input" type="date" style="color:var(--navy-dark);background:var(--gray-100)" id="req-date" value="${S.reqData.requested_date || ''}">
-    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
+    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
 
   else if (S.reqStep === 4) html += `<div class="section-title">What time do you need to depart or arrive?</div>
     <div class="two-col">
       <div class="form-group"><label class="form-label" style="color:var(--navy)">Departure Time</label><input class="form-input" type="time" style="color:var(--navy-dark);background:var(--gray-100)" id="req-dep" value="${S.reqData.requested_time || '08:00'}" oninput="updateReqArrival()"></div>
-      <div class="form-group"><label class="form-label" style="color:var(--navy)">Est. Arrival</label><input class="form-input" type="time" style="color:var(--navy-dark);background:var(--gray-100)" id="req-arr" value="11:30"></div>
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Est. Arrival</label><input class="form-input" type="time" style="color:var(--navy-dark);background:var(--gray-100)" id="req-arr" value="${S.reqData.arrival_time || '11:30'}" oninput="updateReqDeparture()"></div>
     </div>
-    <div class="text-xs text-muted">* Arrival auto-estimated from route distance</div>
-    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
+    <div class="text-xs text-muted">* Arrival and Departure auto-estimated from route distance</div>
+    <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
 
-  else if (S.reqStep === 5) html += `<div class="section-title">Review Your Request</div>
+  else if (S.reqStep === 5) {
+    const depTime = S.reqData.requested_time || 'Flexible';
+    const arrTime = S.reqData.arrival_time || 'Flexible';
+    function timeOfDay(t) {
+      if (!t || t === 'Flexible') return '';
+      const h = parseInt(t.split(':')[0]);
+      if (h >= 5 && h < 12) return 'Morning';
+      if (h >= 12 && h < 17) return 'Afternoon';
+      if (h >= 17 && h < 21) return 'Evening';
+      return 'Night';
+    }
+    html += `<div class="section-title">Review Your Request</div>
     <div style="background:var(--gray-100);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:10px">${S.reqData.from_city || '?'} → ${S.reqData.to_city || '?'}</div>
-      <div class="text-sm text-muted">📅 ${S.reqData.requested_date || 'Flexible'} · 🕐 ${S.reqData.requested_time || 'Flexible'}</div>
+      <div class="text-sm text-muted" style="margin-bottom:8px">📅 ${S.reqData.requested_date || 'Flexible'}</div>
+      <div style="display:flex;gap:20px">
+        <div><div class="text-xs text-muted">DEPARTURE</div><div style="font-weight:600;color:var(--navy)">${depTime}${timeOfDay(depTime) ? ' ('+timeOfDay(depTime)+')' : ''}</div></div>
+        <div><div class="text-xs text-muted">ARRIVAL</div><div style="font-weight:600;color:var(--navy)">${arrTime}${timeOfDay(arrTime) ? ' ('+timeOfDay(arrTime)+')' : ''}</div></div>
+      </div>
     </div>
-    <div style="display:flex;gap:10px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Edit</button>
+    <div style="display:flex;gap:10px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Edit</button>
     <button class="btn btn-gold btn-full btn-lg" id="post-req-btn" onclick="postRequest()">Post Request</button></div>`;
+  }
 
   html += '</div>';
   document.getElementById('p-content').innerHTML = html;
@@ -1458,11 +1711,22 @@ function reqNext() {
   if (S.reqStep === 1) S.reqData.from_city = document.getElementById('req-from')?.value;
   if (S.reqStep === 2) S.reqData.to_city = document.getElementById('req-to')?.value;
   if (S.reqStep === 3) S.reqData.requested_date = document.getElementById('req-date')?.value;
-  if (S.reqStep === 4) S.reqData.requested_time = document.getElementById('req-dep')?.value;
+  if (S.reqStep === 4) {
+    S.reqData.requested_time = document.getElementById('req-dep')?.value;
+    S.reqData.arrival_time = document.getElementById('req-arr')?.value;
+  }
   S.reqStep = Math.min(5, S.reqStep + 1);
   showRequestStep();
 }
 function reqBack() { S.reqStep = Math.max(1, S.reqStep - 1); showRequestStep(); }
+
+function cancelRequest() {
+  if (confirm('Are you sure you want to cancel? Your progress will be lost.')) {
+    S.reqStep = 1;
+    S.reqData = {};
+    pTab('routes');
+  }
+}
 function updateReqArrival() {
   const dep = document.getElementById('req-dep')?.value;
   if (!dep) return;
@@ -1470,6 +1734,15 @@ function updateReqArrival() {
   const arr = new Date(2000, 0, 1, h + 3, m + 30);
   const el = document.getElementById('req-arr');
   if (el) el.value = `${String(arr.getHours()).padStart(2, '0')}:${String(arr.getMinutes()).padStart(2, '0')}`;
+}
+
+function updateReqDeparture() {
+  const arr = document.getElementById('req-arr')?.value;
+  if (!arr) return;
+  const [h, m] = arr.split(':').map(Number);
+  const dep = new Date(2000, 0, 1, h - 3, m - 30);
+  const el = document.getElementById('req-dep');
+  if (el) el.value = `${String(dep.getHours()).padStart(2, '0')}:${String(dep.getMinutes()).padStart(2, '0')}`;
 }
 
 async function postRequest() {
