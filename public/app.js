@@ -2,6 +2,23 @@
 //  DormToHome — Frontend Application
 // ============================================================
 
+// ─── ICON HELPERS ────────────────────────────────────────
+const ICON = {
+  pin: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>',
+  calendar: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  clock: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  seat: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 19v2M17 19v2M4 15h16M6 11V7a2 2 0 012-2h8a2 2 0 012 2v4"/></svg>',
+  driver: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 20v-2a7 7 0 0114 0v2"/></svg>',
+  bus: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6v6M16 6v6M2 12h20M5 6l1-4h12l1 4M5 18h14M8 18v2M16 18v2"/></svg>',
+  note: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+  lightbulb: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M10 22h4M12 2a7 7 0 014 12.7V17h-8v-2.3A7 7 0 0112 2z"/></svg>',
+  check: () => '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+  info: () => '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  timer: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="9" y1="2" x2="15" y2="2"/></svg>',
+  megaphone: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 11-5.8-1.6"/></svg>',
+  people: () => '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>',
+};
+
 // ─── STATE ────────────────────────────────────────────────
 const S = {
   token: null,
@@ -269,11 +286,11 @@ function buildRoutesPage(routes, reqs) {
   <div class="tab-pane active" id="tab-available">
     <div class="filter-bar">
       <span class="filter-label">Filter:</span>
-      <div class="filter-chip" onclick="openFilterPanel('departure')">📍 Departure</div>
-      <div class="filter-chip" onclick="openFilterPanel('arrival')">📍 Arrival</div>
-      <div class="filter-chip" onclick="openFilterPanel('date')">📅 Date</div>
-      <div class="filter-chip" onclick="openFilterPanel('time')">🕐 Time of Day</div>
-      <div class="filter-chip" onclick="openFilterPanel('seats')">💺 Min Seats</div>
+      <div class="filter-chip" onclick="openFilterPanel('departure')">${ICON.pin()} Departure</div>
+      <div class="filter-chip" onclick="openFilterPanel('arrival')">${ICON.pin()} Arrival</div>
+      <div class="filter-chip" onclick="openFilterPanel('date')">${ICON.calendar()} Date</div>
+      <div class="filter-chip" onclick="openFilterPanel('time')">${ICON.clock()} Time of Day</div>
+      <div class="filter-chip" onclick="openFilterPanel('seats')">${ICON.seat()} Min Seats</div>
       <input style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:6px 12px;font-size:.8rem;color:var(--navy-dark);outline:none;width:200px" placeholder="Search route # (DTH-201)" oninput="filterRouteNum(this.value)">
     </div>
     <div class="routes-grid" id="routes-list">${routes.map(buildRouteCard).join('') || emptyState('No routes found')}</div>
@@ -286,11 +303,13 @@ function buildRoutesPage(routes, reqs) {
         <div class="filter-chip" onclick="openFilterPanel('departure')">Departure</div>
         <div class="filter-chip" onclick="openFilterPanel('arrival')">Arrival</div>
         <div class="filter-chip" onclick="openFilterPanel('date')">Date</div>
+        <div class="filter-chip" onclick="openFilterPanel('time')">Time of Day</div>
+        <div class="filter-chip" onclick="clearRequestFilters()" style="background:var(--error);color:white;border-color:var(--error)">✕ Clear</div>
       </div>
       <button class="btn btn-gold" onclick="openRequestWizard()">+ Request Route</button>
     </div>
     <div style="background:rgba(201,150,42,.07);border:1px solid rgba(201,150,42,.2);border-radius:10px;padding:12px 16px;font-size:.82rem;color:var(--gray-600);margin-bottom:16px">
-      💡 Can't find your route? <span style="color:var(--gold);font-weight:600;cursor:pointer" onclick="openRequestWizard()">Post a request →</span>
+      ${ICON.lightbulb()} Can't find your route? <span style="color:var(--gold);font-weight:600;cursor:pointer" onclick="openRequestWizard()">Post a request →</span>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px" id="req-list">${reqs.map(buildReqCard).join('') || emptyState('No requests yet')}</div>
   </div>
@@ -322,7 +341,7 @@ function buildRouteCard(r) {
         <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${String(r.departure_time)} – ${String(r.arrival_time)}</span>
         <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>${String(r.duration)}</span>
         <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 20v-2a7 7 0 0114 0v2"/></svg>${String(r.available_seats)} seats left</span>
-        <span class="route-meta-item">🧑‍✈️ ${r.driver_name}</span>
+        <span class="route-meta-item">${ICON.driver()} ${r.driver_name}</span>
       </div>
       <div style="margin-top:10px">
         <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--gray-400);margin-bottom:3px"><span>Capacity</span><span>${pct}% full</span></div>
@@ -344,7 +363,7 @@ function buildReqCard(r) {
     <div>
       <div style="font-weight:600;color:var(--navy);margin-bottom:3px">${String(r.from_city)} → ${String(r.to_city)}</div>
       <div class="text-sm text-muted">${r.requested_date ? new Date(r.requested_date + 'T00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : 'Flexible'}</div>
-      <div class="text-xs text-muted" style="margin-top:2px">🕐 Departs: ${r.requested_time || 'Any'}</div>
+      <div class="text-xs text-muted" style="margin-top:2px">${ICON.clock()} Departs: ${r.requested_time || 'Any'}</div>
     </div>
     <div style="text-align:center">
       <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy)" id="rcount-${r.id}">${r.supporter_count}</div>
@@ -377,8 +396,8 @@ function filterRouteNum(val) {
 // ─── FILTER PANEL ────────────────────────────────────────
 let activeFilter = null;
 let savedFilters = {
-  departure: '',
-  arrival: '',
+  departures: [],
+  arrivals: [],
   dateFrom: '',
   dateTo: '',
   time: [],
@@ -392,11 +411,11 @@ function openFilterPanel(type) {
   document.getElementById('fp-title').textContent = titles[type];
   let html = '';
   if (type === 'departure' || type === 'arrival') {
-    const savedCity = type === 'departure' ? savedFilters.departure : savedFilters.arrival;
+    const savedCities = type === 'departure' ? savedFilters.departures : savedFilters.arrivals;
     html = `<input style="width:100%;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:10px 14px;font-size:.9rem;outline:none;color:var(--navy-dark)" placeholder="Search city..." oninput="fpCitySearch(this,'fp-cities')">
     <div id="fp-cities" style="border:1px solid var(--gray-200);border-radius:8px;margin-top:6px;max-height:200px;overflow-y:auto"></div>
     <div id="fp-selected" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
-      ${savedCity ? `<div class="filter-chip active" data-city="${savedCity}">${savedCity} <span onclick="this.parentElement.remove()" style="cursor:pointer;margin-left:4px">✕</span></div>` : ''}
+      ${savedCities.map(c => `<div class="filter-chip active" data-city="${c}">${c} <span onclick="this.parentElement.remove()" style="cursor:pointer;margin-left:4px">✕</span></div>`).join('')}
     </div>`;
   } else if (type === 'date') {
     html = `<p style="font-size:.8rem;color:var(--gray-400);margin-bottom:10px">Shows routes departing within this date range.</p>
@@ -436,11 +455,11 @@ function fpAddCity(name, input, selId) {
 async function applyFilterPanel() {
   if (activeFilter === 'departure') {
     const chips = document.querySelectorAll('#fp-selected .filter-chip.active');
-    savedFilters.departure = chips.length ? chips[0].dataset.city?.split(',')[0]?.trim() : '';
+    savedFilters.departures = Array.from(chips).map(c => c.dataset.city?.split(',')[0]?.trim()).filter(Boolean);
   }
   if (activeFilter === 'arrival') {
     const chips = document.querySelectorAll('#fp-selected .filter-chip.active');
-    savedFilters.arrival = chips.length ? chips[0].dataset.city?.split(',')[0]?.trim() : '';
+    savedFilters.arrivals = Array.from(chips).map(c => c.dataset.city?.split(',')[0]?.trim()).filter(Boolean);
   }
   if (activeFilter === 'date') {
     savedFilters.dateFrom = document.getElementById('fp-date-from')?.value || '';
@@ -465,14 +484,19 @@ async function applyFilterPanel() {
   }
 
   const params = new URLSearchParams();
-  if (savedFilters.departure) params.set('from', savedFilters.departure);
-  if (savedFilters.arrival) params.set('to', savedFilters.arrival);
   if (savedFilters.dateFrom) params.set('date_from', savedFilters.dateFrom);
   if (savedFilters.dateTo) params.set('date_to', savedFilters.dateTo);
   if (savedFilters.seats) params.set('min_seats', savedFilters.seats);
 
   try {
     let routes = await api('GET', `/routes?${params.toString()}`, null, false);
+
+    if (savedFilters.departures.length > 0) {
+      routes = routes.filter(r => savedFilters.departures.some(city => r.from_city.toLowerCase().includes(city.toLowerCase())));
+    }
+    if (savedFilters.arrivals.length > 0) {
+      routes = routes.filter(r => savedFilters.arrivals.some(city => r.to_city.toLowerCase().includes(city.toLowerCase())));
+    }
 
     if (savedFilters.time.length > 0) {
       routes = routes.filter(r => {
@@ -502,7 +526,7 @@ async function applyFilterPanel() {
 
 function updateClearFilterBtn() {
   let existing = document.getElementById('clear-filters-btn');
-  const hasFilters = savedFilters.departure || savedFilters.arrival || savedFilters.dateFrom ||
+  const hasFilters = savedFilters.departures.length || savedFilters.arrivals.length || savedFilters.dateFrom ||
                      savedFilters.dateTo || savedFilters.time.length || savedFilters.seats;
   if (hasFilters && !existing) {
     const bar = document.querySelector('#tab-available .filter-bar');
@@ -521,7 +545,7 @@ function updateClearFilterBtn() {
 }
 
 async function clearAllFilters() {
-  savedFilters = { departure:'', arrival:'', dateFrom:'', dateTo:'', time:[], seats:'' };
+  savedFilters = { departures:[], arrivals:[], dateFrom:'', dateTo:'', time:[], seats:'' };
   const btn = document.getElementById('clear-filters-btn');
   if (btn) btn.remove();
   try {
@@ -538,11 +562,11 @@ function applyRequestFilters() {
 
   let filtered = S.requests;
 
-  if (savedFilters.departure) {
-    filtered = filtered.filter(r => r.from_city.toLowerCase().includes(savedFilters.departure.toLowerCase()));
+  if (savedFilters.departures.length > 0) {
+    filtered = filtered.filter(r => savedFilters.departures.some(city => r.from_city.toLowerCase().includes(city.toLowerCase())));
   }
-  if (savedFilters.arrival) {
-    filtered = filtered.filter(r => r.to_city.toLowerCase().includes(savedFilters.arrival.toLowerCase()));
+  if (savedFilters.arrivals.length > 0) {
+    filtered = filtered.filter(r => savedFilters.arrivals.some(city => r.to_city.toLowerCase().includes(city.toLowerCase())));
   }
   if (savedFilters.dateFrom) {
     filtered = filtered.filter(r => r.requested_date >= savedFilters.dateFrom);
@@ -550,10 +574,41 @@ function applyRequestFilters() {
   if (savedFilters.dateTo) {
     filtered = filtered.filter(r => r.requested_date <= savedFilters.dateTo);
   }
+  if (savedFilters.time.length > 0) {
+    filtered = filtered.filter(r => {
+      if (!r.requested_time) return false;
+      const hour = parseInt(r.requested_time.split(':')[0]);
+      return savedFilters.time.some(t => {
+        if (t.includes('5–7 AM'))  return hour >= 5 && hour < 7;
+        if (t.includes('7–9 AM'))  return hour >= 7 && hour < 9;
+        if (t.includes('9–11 AM')) return hour >= 9 && hour < 11;
+        if (t.includes('11 AM–1 PM')) return hour >= 11 && hour < 13;
+        if (t.includes('1–3 PM'))  return hour >= 13 && hour < 15;
+        if (t.includes('3–5 PM'))  return hour >= 15 && hour < 17;
+        if (t.includes('5–7 PM'))  return hour >= 17 && hour < 19;
+        if (t.includes('7–9 PM'))  return hour >= 19 && hour < 21;
+        return false;
+      });
+    });
+  }
 
   reqList.innerHTML = filtered.map(buildReqCard).join('') || emptyState('No requests match your filter');
   toast('Filter applied', 'success');
   updateClearFilterBtn();
+}
+
+function clearRequestFilters() {
+  savedFilters.departures = [];
+  savedFilters.arrivals = [];
+  savedFilters.dateFrom = '';
+  savedFilters.dateTo = '';
+  savedFilters.time = [];
+  savedFilters.seats = '';
+  const reqList = document.getElementById('req-list');
+  if (reqList && S.requests) {
+    reqList.innerHTML = S.requests.map(buildReqCard).join('') || emptyState('No requests yet');
+  }
+  toast('Filters cleared', 'success');
 }
 
 function closeFilterPanel() {
@@ -581,21 +636,20 @@ async function openRouteDetail(id) {
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
-        <span class="badge badge-gold">⏱ ${String(r.duration)}</span>
-        <span class="badge badge-blue">🧑‍✈️ ${r.driver_name}</span>
-        <span class="badge badge-green">💺 ${String(r.available_seats)}/${String(r.total_seats)}</span>
+        <span class="badge badge-gold">${ICON.timer()} ${String(r.duration)}</span>
+        <span class="badge badge-blue">${ICON.driver()} ${r.driver_name}</span>
+        <span class="badge badge-green">${ICON.seat()} ${String(r.available_seats)}/${String(r.total_seats)}</span>
         <span class="badge badge-gold">$${String(r.price_per_seat)}/seat</span>
         <span class="route-num">${String(r.route_number)}</span>
       </div>
-      ${stops.length ? `
       <div class="section-title">Route Stops</div>
       <div class="stops-list">
         <div class="stop-item"><div class="stop-dot done">✓</div><div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${String(r.from_city)}</div><div class="text-xs text-muted">${String(r.departure_time)}</div></div></div>
-        ${stops.map(s=>`<div class="stop-item"><div class="stop-dot ${s.stop_type==='checkpoint'?'':''}" style="${s.stop_type==='checkpoint'?'border-color:var(--gold-light);font-size:.55rem;font-weight:700;color:var(--gold)':''}"><span>${s.stop_type==='checkpoint'?'CP':''}</span></div>
-        <div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${s.city}</div><div class="text-xs text-muted">${s.stop_type==='checkpoint'?'Guardian checkpoint':'Bus stop'}${s.scheduled_time?' · '+s.scheduled_time:''}</div></div></div>`).join('')}
+        ${stops.length ? stops.map(s=>`<div class="stop-item"><div class="stop-dot ${s.type==='checkpoint'?'done':''}" style="${s.type==='checkpoint'?'border-color:var(--gold-light);font-size:.55rem;font-weight:700;color:var(--gold)':''}"><span>${s.type==='checkpoint'?'CP':''}</span></div>
+        <div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${s.city}</div><div class="text-xs text-muted">${s.type==='checkpoint'?'Guardian checkpoint':'Bus stop'}${s.scheduled_time?' · '+s.scheduled_time:''}</div></div></div>`).join('') : ''}
         <div class="stop-item"><div class="stop-dot" style="border-color:var(--gold)"></div><div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${String(r.to_city)}</div><div class="text-xs text-muted">${String(r.arrival_time)}</div></div></div>
-      </div>` : ''}
-      ${r.notes ? `<div style="background:var(--gray-100);border-radius:8px;padding:12px;font-size:.85rem;color:var(--gray-600);margin-top:16px">📝 ${r.notes}</div>` : ''}
+      </div>
+      ${r.notes ? `<div style="background:var(--gray-100);border-radius:8px;padding:12px;font-size:.85rem;color:var(--gray-600);margin-top:16px">${ICON.note()} ${r.notes}</div>` : ''}
       <button class="btn btn-gold btn-full btn-lg" style="margin-top:20px" data-action="start-booking" data-close="modal-route" data-rid="${r.id}">Book a Seat — $${String(r.price_per_seat)}</button>`;
     openModal('modal-route');
   } catch (e) { toast(e.message, 'error'); }
@@ -770,7 +824,7 @@ function buildTicketsPage(bookings) {
   if (!bookings.length) return `<div class="page-header"><div><div class="page-title">My Tickets</div></div></div>${emptyState('No tickets yet — book a route!')}`;
   return `
   <div class="page-header"><div><div class="page-title">My Tickets</div><div class="page-sub">Tap a ticket to view QR code</div></div></div>
-  <div class="tabs"><div class="tab active" onclick="switchTicketTab('upcoming')">Active Tickets</div><div class="tab" onclick="switchTicketTab('past')">Former Tickets</div></div>
+  <div class="tabs"><div class="tab active" onclick="switchTicketTab('upcoming')">Active Tickets</div><div class="tab" onclick="switchTicketTab('past')">Inactive Tickets</div></div>
   <div style="display:flex;flex-direction:column;gap:12px" id="tickets-list">
     ${bookings.map(b => buildTicketCard(b)).join('')}
   </div>`;
@@ -788,7 +842,7 @@ function buildTicketCard(b) {
         <div style="color:var(--gold);font-size:1.2rem;flex:1;text-align:center">→</div>
         <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.to_city}</div><div class="text-xs text-muted">${b.arrival_time}</div></div>
       </div>
-      <div style="display:flex;gap:14px;font-size:.78rem;color:var(--gray-400)"><span>📅 ${b.departure_date}</span><span>💺 Seat ${b.seat_number}</span><span>🧑‍✈️ ${b.driver_name}</span></div>
+      <div style="display:flex;gap:14px;font-size:.78rem;color:var(--gray-400)"><span>${ICON.calendar()} ${b.departure_date}</span><span>${ICON.seat()} Seat ${b.seat_number}</span><span>${ICON.driver()} ${b.driver_name}</span></div>
     </div>
     <div style="background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:8px">
       <div style="font-size:.6rem;color:rgba(255,255,255,.5);letter-spacing:.08em">SCAN</div>
@@ -850,7 +904,7 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
       <div><div class="text-xs text-muted">DRIVER</div><div style="font-weight:600;color:var(--navy);font-size:.88rem">${driver}</div></div>
     </div>
     <div style="margin-top:14px;background:rgba(201,150,42,.08);border:1px solid rgba(201,150,42,.2);border-radius:10px;padding:12px;font-size:.8rem;color:var(--gray-600)">
-      🚌 <strong>Booking ID:</strong> ${id.substring(0,8).toUpperCase()}
+      ${ICON.bus()} <strong>Booking ID:</strong> ${id.substring(0,8).toUpperCase()}
     </div>`;
   openModal('modal-ticket');
   setTimeout(() => {
@@ -1168,7 +1222,7 @@ function buildDriverDashboard(a) {
     <div><div class="page-title">Driver Dashboard</div><div class="page-sub">${S.user?.first_name} ${S.user?.last_name}</div></div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-outline-gold btn-sm" onclick="logout()">Sign Out</button>
-      <button class="btn btn-outline-gold btn-sm" onclick="openSendNotif()">📣 Send Update</button>
+      <button class="btn btn-outline-gold btn-sm" onclick="openSendNotif()">${ICON.megaphone()} Send Update</button>
       <button class="btn btn-gold" onclick="dTab('create')">+ New Route</button>
     </div>
   </div>
@@ -1238,9 +1292,9 @@ function buildDriverRoutesPage(routes) {
           <span class="route-num">${String(r.route_number)}</span>
         </div>
         <div class="route-meta">
-          <span class="route-meta-item">📅 ${String(r.departure_date)}</span>
-          <span class="route-meta-item">🕐 ${String(r.departure_time)}</span>
-          <span class="route-meta-item">👥 ${String(r.booked_seats)}/${String(r.total_seats)} booked</span>
+          <span class="route-meta-item">${ICON.calendar()} ${String(r.departure_date)}</span>
+          <span class="route-meta-item">${ICON.clock()} ${String(r.departure_time)}</span>
+          <span class="route-meta-item">${ICON.people()} ${String(r.booked_seats)}/${String(r.total_seats)} booked</span>
         </div>
         <div style="margin-top:8px"><div class="progress-bar" style="max-width:200px"><div class="progress-fill" style="width:${Math.round((r.booked_seats/r.total_seats)*100)}%"></div></div></div>
       </div>
@@ -1612,9 +1666,9 @@ function updateNotifPreview() {
   if (customWrap) customWrap.style.display = type === 'custom' ? '' : 'none';
   const time = document.getElementById('notif-eta-time')?.value || '15 min';
   const msgs = {
-    eta: `📍 Update: I am ${time} away from the next stop.`,
-    delay: '⚠️ Heads up: We are running more than 5 minutes behind schedule. Updated ETA to follow.',
-    depart: '🚌 We are now departing from the current stop. See you at the next one!',
+    eta: `[Pin] Update: I am ${time} away from the next stop.`,
+    delay: '[!] Heads up: We are running more than 5 minutes behind schedule. Updated ETA to follow.',
+    depart: '[Bus] We are now departing from the current stop. See you at the next one!',
     custom: document.getElementById('notif-custom')?.value || '',
   };
   preview.textContent = msgs[type] || '';
@@ -1625,9 +1679,9 @@ async function sendDriverNotif() {
   const type = document.getElementById('notif-type')?.value;
   const time = document.getElementById('notif-eta-time')?.value || '15 min';
   const msgs = {
-    eta: `📍 Update: I am ${time} away from the next stop.`,
-    delay: '⚠️ Heads up: We are running more than 5 minutes behind schedule.',
-    depart: '🚌 We are now departing from the current stop.',
+    eta: `[Pin] Update: I am ${time} away from the next stop.`,
+    delay: '[!] Heads up: We are running more than 5 minutes behind schedule.',
+    depart: '[Bus] We are now departing from the current stop.',
     custom: document.getElementById('notif-custom')?.value || 'Update from your driver.',
   };
   const message = msgs[type];
@@ -1726,7 +1780,7 @@ function showRequestStep() {
     html += `<div class="section-title">Review Your Request</div>
     <div style="background:var(--gray-100);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:10px">${S.reqData.from_city || '?'} → ${S.reqData.to_city || '?'}</div>
-      <div class="text-sm text-muted" style="margin-bottom:8px">📅 ${S.reqData.requested_date || 'Flexible'}</div>
+      <div class="text-sm text-muted" style="margin-bottom:8px">${ICON.calendar()} ${S.reqData.requested_date || 'Flexible'}</div>
       <div style="display:flex;gap:20px">
         <div><div class="text-xs text-muted">DEPARTURE</div><div style="font-weight:600;color:var(--navy)">${depTime}${timeOfDay(depTime) ? ' ('+timeOfDay(depTime)+')' : ''}</div></div>
         <div><div class="text-xs text-muted">ARRIVAL</div><div style="font-weight:600;color:var(--navy)">${arrTime}${timeOfDay(arrTime) ? ' ('+timeOfDay(arrTime)+')' : ''}</div></div>
@@ -1798,7 +1852,7 @@ async function openNotifs() {
     const notifs = await api('GET', '/notifications');
     document.getElementById('notifs-body').innerHTML = notifs.length ? notifs.map(n => `
       <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-100)">
-        <div style="width:36px;height:36px;border-radius:10px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">${n.type === 'success' ? '✅' : n.type === 'alert' ? '🚌' : 'ℹ️'}</div>
+        <div style="width:36px;height:36px;border-radius:10px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">${n.type === 'success' ? ICON.check() : n.type === 'alert' ? ICON.bus() : ICON.info()}</div>
         <div><div style="font-weight:600;font-size:.875rem;color:var(--navy)">${n.title}</div><div class="text-sm text-muted mt-4">${n.body}</div></div>
       </div>`).join('') : '<div class="text-sm text-muted" style="text-align:center;padding:20px">No notifications</div>';
     await api('PATCH', '/notifications/read-all');
