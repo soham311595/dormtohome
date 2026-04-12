@@ -30,7 +30,7 @@ async function loginAsPassenger(page) {
   try {
     await fetch(`${BASE_URL}/dev/seed-test-users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'x-dev-token': 'devtoken123' }
     });
   } catch(e) {}
   
@@ -54,7 +54,7 @@ async function loginAsDriver(page) {
   try {
     await fetch(`${BASE_URL}/dev/seed-test-users`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json', 'x-dev-token': 'devtoken123' }
     });
   } catch(e) {}
   

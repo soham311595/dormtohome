@@ -39,7 +39,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/routes', require('./routes/routes'));
 app.use('/api', require('./routes/api'));
 app.post('/dev/seed-test-users', async (req, res) => {
-  if (process.env.NODE_ENV === 'production') return res.status(403).json({ error: 'Not available in production' });
+  const devToken = req.headers['x-dev-token'] || '';
+  if (devToken !== (process.env.DEV_TOKEN || 'devtoken123')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
   try {
     const testUsers = [
       { email: 'passenger_test@test.com', password: 'TestPass123', first_name: 'Test', last_name: 'Passenger', phone: '5551234567', role: 'passenger' },
