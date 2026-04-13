@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { all, get, run } = require('../db/database');
+const { generateToken } = require('../db/database');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 
 // ── BOOKINGS ──────────────────────────────────────────────
@@ -41,13 +42,14 @@ router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, r
 
     const amount = booking_type === 'package' ? route.package_price : route.price_per_seat;
     const id = uuidv4();
+    const ticketToken = generateToken();
     await run(
-      `INSERT INTO bookings (id,route_id,passenger_id,seat_number,checkin_status,booking_type,amount_paid) VALUES ($1,$2,$3,$4,'pending',$5,$6)`,
-      [id, route_id, req.user.id, seat_number, booking_type||'seat', amount]
+      `INSERT INTO bookings (id,route_id,passenger_id,seat_number,checkin_status,booking_type,amount_paid,ticket_token) VALUES ($1,$2,$3,$4,'pending',$5,$6,$7)`,
+      [id, route_id, req.user.id, seat_number, booking_type||'seat', amount, ticketToken]
     );
     await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`,
       [uuidv4(), req.user.id, 'Booking Confirmed!', `Seat ${seat_number} booked successfully.`, 'success']);
-    res.json({ id, seat_number, amount_paid: amount, checkin_status: 'pending' });
+    res.json({ id, seat_number, amount_paid: amount, checkin_status: 'pending', ticket_token: ticketToken });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -59,6 +61,53 @@ router.patch('/bookings/:id/checkin', authMiddleware, requireRole('driver'), asy
     await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`,
       [uuidv4(), booking.uid, 'Checked In', `${booking.first_name} ${booking.last_name} has boarded.`, 'success']);
     res.json({ success: true, booking });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/bookings/:id/ticket', authMiddleware, async (req, res) => {
+  try {
+    const booking = await get(`
+      SELECT b.id, b.ticket_token, b.seat_number, b.checkin_status, b.checked_in,
+             r.from_city as origin, r.to_city as destination, r.departure_date, r.departure_time,
+             u.first_name, u.last_name
+      FROM bookings b
+      JOIN routes r ON b.route_id=r.id
+      JOIN users u ON b.passenger_id=u.id
+      WHERE b.id=$1 AND b.passenger_id=$2`, [req.params.id, req.user.id]);
+
+    if (!booking) return res.status(404).json({ error: 'Booking not found' });
+    res.json(booking);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/bookings/checkin', authMiddleware, requireRole('driver'), async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    const booking = await get(`
+      SELECT b.id, b.checked_in, b.seat_number, b.route_id,
+             u.first_name, u.last_name,
+             r.from_city, r.to_city
+      FROM bookings b
+      JOIN users u ON b.passenger_id=u.id
+      JOIN routes r ON b.route_id=r.id
+      WHERE b.ticket_token=$1 AND b.checkin_status='pending'`, [token]);
+
+    if (!booking) {
+      const existing = await get(`SELECT id, checked_in FROM bookings WHERE ticket_token=$1`, [token]);
+      if (existing) return res.status(409).json({ error: 'Already checked in', booking: existing });
+      return res.status(404).json({ error: 'Invalid or expired ticket' });
+    }
+
+    await run(`UPDATE bookings SET checked_in=1, checked_in_at=CURRENT_TIMESTAMP, checkin_status='checked' WHERE ticket_token=$1`, [token]);
+
+    res.json({
+      success: true,
+      passenger: `${booking.first_name} ${booking.last_name}`,
+      seat: booking.seat_number,
+      route: `${booking.from_city} → ${booking.to_city}`
+    });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

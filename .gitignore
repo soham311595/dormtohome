@@ -2,3 +2,8 @@ node_modules/
 .env
 data/
 *.log
+agents/
+AGENTS.md
+new debug files/
+DORMTOHOME_BUGFIX_PLAN.md
+debugscripts/

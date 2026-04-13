@@ -160,6 +160,33 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => connectedUsers.delete(socket.id));
+
+  socket.on('location:start', ({ routeId }) => {
+    socket.join(`route:${routeId}`);
+    socket.to(`route:${routeId}`).emit('driver:online', { routeId });
+  });
+
+  socket.on('location:update', ({ routeId, lat, lng, speed, heading }) => {
+    socket.to(`route:${routeId}`).emit('location:broadcast', {
+      lat, lng,
+      speed: speed || null,
+      heading: heading || null,
+      timestamp: Date.now()
+    });
+  });
+
+  socket.on('location:stop', ({ routeId }) => {
+    socket.to(`route:${routeId}`).emit('driver:offline', { routeId });
+    socket.leave(`route:${routeId}`);
+  });
+
+  socket.on('route:watch', ({ routeId }) => {
+    socket.join(`route:${routeId}`);
+  });
+
+  socket.on('route:unwatch', ({ routeId }) => {
+    socket.leave(`route:${routeId}`);
+  });
 });
 
 // ─── GRACEFUL SHUTDOWN ────────────────────────────────────

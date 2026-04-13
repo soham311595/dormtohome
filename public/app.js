@@ -248,6 +248,7 @@ function dTab(tab) {
   else if (tab === 'checkin') renderCheckin();
   else if (tab === 'requested') renderRequested();
   else if (tab === 'messages') renderDriverMessages();
+  else if (tab === 'live') renderDriverLive();
 }
 
 // ─── PASSENGER: ROUTES ────────────────────────────────────
@@ -898,25 +899,28 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
       <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy)">${from} → ${to}</div>
       <div class="text-sm text-muted">${date} · ${time}</div>
     </div>
-    <div style="background:var(--navy);border-radius:16px;padding:24px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
+    <div id="qr-ticket-container" style="background:var(--navy);border-radius:16px;padding:24px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
       <div style="background:white;padding:16px;border-radius:12px;display:flex;align-items:center;justify-content:center">
         <canvas id="qr-ticket-large" width="144" height="144"></canvas>
       </div>
     </div>
     <div style="text-align:center;font-size:.78rem;color:var(--gray-400);margin-bottom:16px">Show this to your driver at boarding</div>
+    <div style="flex-direction:row;font-size:.85rem;color:var(--gray-400);text-align:center"></div>
     <div style="background:var(--gray-100);border-radius:10px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">
       <div><div class="text-xs text-muted">SEAT</div><div style="font-weight:700;color:var(--navy);font-size:1.2rem">${seat}</div></div>
       <div><div class="text-xs text-muted">DRIVER</div><div style="font-weight:600;color:var(--navy);font-size:.88rem">${driver}</div></div>
     </div>
     <div style="margin-top:14px;background:rgba(201,150,42,.08);border:1px solid rgba(201,150,42,.2);border-radius:10px;padding:12px;font-size:.8rem;color:var(--gray-600)">
       ${ICON.bus()} <strong>Booking ID:</strong> ${id.substring(0,8).toUpperCase()}
-    </div>`;
+    </div>
+    <div id="ticket-qr-canvas"></div>`;
   openModal('modal-ticket');
   setTimeout(() => {
     const canvas = document.getElementById('qr-ticket-large');
     if (canvas && typeof QRCode !== 'undefined') {
       QRCode.toCanvas(canvas, `dormtohome:ticket:${id}`, { width: 144, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
     }
+    renderTicketQR(id);
   }, 100);
 }
 
@@ -1489,6 +1493,7 @@ async function renderCheckin() {
     document.getElementById('d-content').innerHTML = buildCheckinPage(firstRoute, manifest);
     if (S.socket) S.socket.emit('join_route_room', firstRoute.id);
     S.chatRoute = firstRoute.id;
+    setTimeout(() => initCheckinScanner(), 100);
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1564,6 +1569,32 @@ function simulateScan() {
 
 function renderStopsLive(stops) {
   // Update stop statuses if we're on active trips page
+}
+
+// ─── DRIVER LIVE TAB ──────────────────────────────────────
+async function renderDriverLive() {
+  try {
+    const routes = await api('GET', '/routes/driver/mine');
+    const activeRoute = routes.find(r => r.status === 'active') || routes[0];
+    if (!activeRoute) {
+      document.getElementById('d-content').innerHTML = `<div class="page-header"><div><div class="page-title">Live Tracking</div></div></div>${emptyState('No active routes. Create or activate a route first.')}`;
+      return;
+    }
+    S.activeRouteId = activeRoute.id;
+    document.getElementById('d-content').innerHTML = buildDriverLivePage(activeRoute);
+    setTimeout(() => {
+      if (S.activeRouteId) initDriverLiveTab(S.activeRouteId);
+    }, 100);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function buildDriverLivePage(route) {
+  return `
+  <div class="page-header">
+    <div><div class="page-title">Live Tracking</div><div class="page-sub">${route.route_number}</div></div>
+  </div>
+  <div id="driver-live-section"></div>
+  `;
 }
 
 // ─── DRIVER: REQUESTED ROUTES ────────────────────────────
@@ -1939,6 +1970,348 @@ function toast(msg, type = 'info') {
 
 function emptyState(msg) {
   return `<div style="text-align:center;padding:60px 24px;color:var(--gray-400)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48" style="margin:0 auto 16px;display:block;opacity:.3"><rect x="1" y="3" width="22" height="14" rx="2"/><path d="M1 10h22M8 17v2M16 17v2"/></svg><p style="font-size:.9rem">${msg}</p></div>`;
+}
+
+// ─── QR TICKET RENDERING ────────────────────────────────
+let currentTicketToken = null;
+
+async function renderTicketQR(bookingId) {
+  try {
+    const data = await api('GET', `/bookings/${bookingId}/ticket`);
+    currentTicketToken = data.ticket_token;
+    
+    let qrContainer = document.getElementById('ticket-qr-canvas');
+    if (!qrContainer) {
+      qrContainer = document.createElement('div');
+      qrContainer.id = 'ticket-qr-canvas';
+      document.getElementById('modal-ticket-body').appendChild(qrContainer);
+    }
+
+    qrContainer.innerHTML = '';
+
+    const qrDiv = document.createElement('div');
+    qrDiv.style.cssText = 'display:flex;flex-direction:column;align-items:center;padding:16px;background:white;border-radius:12px;margin:16px 0;';
+    qrDiv.id = 'qr-code-container';
+    qrContainer.appendChild(qrDiv);
+
+    if (typeof QRCode !== 'undefined' && data.ticket_token) {
+      new QRCode(qrDiv, {
+        text: data.ticket_token,
+        width: 200,
+        height: 200,
+        colorDark: '#1a1a2e',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+
+    const info = document.createElement('div');
+    info.style.cssText = 'text-align:center;margin-top:12px;font-size:13px;color:#444;';
+    info.innerHTML = `
+      <div style="font-weight:700;font-size:15px;margin-bottom:4px;">
+        ${data.origin} → ${data.destination}
+      </div>
+      <div>Seat ${data.seat_number} · ${new Date(data.departure_date).toLocaleDateString()}</div>
+      <div style="margin-top:8px;font-family:monospace;font-size:11px;color:#888;">
+        ${data.ticket_token}
+      </div>
+      ${data.checked_in
+        ? '<div style="color:#22c55e;font-weight:600;margin-top:8px;">✓ Checked In</div>'
+        : '<div style="color:#f59e0b;margin-top:8px;">Show this to your driver</div>'
+      }
+    `;
+    qrContainer.appendChild(info);
+  } catch (e) {
+    console.error('Error loading ticket:', e);
+  }
+}
+
+// ─── DRIVER QR CHECK-IN ────────────────────────────────
+let html5QrScanner = null;
+
+function initCheckinScanner() {
+  const scannerSection = document.getElementById('checkin-scanner-section');
+  if (!scannerSection) return;
+
+  if (!document.getElementById('qr-reader')) {
+    scannerSection.innerHTML = `
+      <div style="max-width:420px;margin:0 auto;">
+        <h3 style="margin-bottom:12px;">Scan Passenger Ticket</h3>
+        <div id="qr-reader" style="width:100%;border-radius:12px;overflow:hidden;"></div>
+        <div style="margin:16px 0;text-align:center;color:#888;font-size:13px;">
+          — or enter code manually —
+        </div>
+        <div style="display:flex;gap:8px;">
+          <input
+            id="manual-token-input"
+            type="text"
+            placeholder="Paste ticket code (tk_...)"
+            style="flex:1;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:monospace;"
+          />
+          <button
+            id="manual-checkin-btn"
+            style="padding:10px 18px;background:#1a1a2e;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;"
+          >
+            Check In
+          </button>
+        </div>
+        <div id="checkin-result" style="margin-top:16px;display:none;padding:14px 16px;border-radius:10px;font-size:15px;"></div>
+      </div>
+    `;
+  }
+
+  if (!html5QrScanner) {
+    html5QrScanner = new Html5QrcodeScanner('qr-reader', {
+      fps: 10,
+      qrbox: { width: 250, height: 250 },
+      rememberLastUsedCamera: true
+    });
+
+    html5QrScanner.render(
+      (decodedText) => processCheckin(decodedText),
+      (error) => {}
+    );
+  }
+
+  document.getElementById('manual-checkin-btn').addEventListener('click', () => {
+    const val = document.getElementById('manual-token-input').value.trim();
+    if (val) processCheckin(val);
+  });
+  document.getElementById('manual-token-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const val = e.target.value.trim();
+      if (val) processCheckin(val);
+    }
+  });
+}
+
+async function processCheckin(token) {
+  const resultEl = document.getElementById('checkin-result');
+
+  resultEl.style.display = 'block';
+  resultEl.style.background = '#f3f4f6';
+  resultEl.style.color = '#374151';
+  resultEl.textContent = 'Verifying...';
+
+  try {
+    const res = await api('POST', '/bookings/checkin', { token });
+    
+    if (res.success) {
+      resultEl.style.background = '#dcfce7';
+      resultEl.style.color = '#166534';
+      resultEl.innerHTML = `
+        <strong>✓ Checked In</strong><br>
+        ${res.passenger} · Seat ${res.seat}<br>
+        <span style="font-size:13px;opacity:0.8;">${res.route}</span>
+      `;
+      const input = document.getElementById('manual-token-input');
+      if (input) input.value = '';
+    } else if (res.error) {
+      resultEl.style.background = '#fee2e2';
+      resultEl.style.color = '#991b1b';
+      resultEl.textContent = `✗ ${res.error}`;
+    }
+  } catch (err) {
+    resultEl.style.background = '#fee2e2';
+    resultEl.style.color = '#991b1b';
+    resultEl.textContent = '✗ Network error, try again';
+  }
+
+  setTimeout(() => {
+    if (resultEl) resultEl.style.display = 'none';
+  }, 5000);
+}
+
+function stopCheckinScanner() {
+  if (html5QrScanner) {
+    html5QrScanner.clear().catch(() => {});
+    html5QrScanner = null;
+  }
+}
+
+// ─── DRIVER LIVE LOCATION BROADCAST ───────────────────
+let locationWatchId = null;
+let isLiveBroadcasting = false;
+
+function initDriverLiveTab(routeId) {
+  const liveSection = document.getElementById('driver-live-section');
+  if (!liveSection) return;
+
+  liveSection.innerHTML = `
+    <div style="max-width:480px;margin:0 auto;text-align:center;">
+      <h3 style="margin-bottom:8px;">Live Tracking</h3>
+      <p style="color:#6b7280;font-size:14px;margin-bottom:20px;">
+        Share your real-time location with passengers on this route.
+      </p>
+      <button
+        id="toggle-live-btn"
+        style="padding:14px 32px;font-size:16px;font-weight:600;background:#22c55e;color:white;border:none;border-radius:10px;cursor:pointer;transition:background 0.2s;"
+      >
+        ▶ Go Live
+      </button>
+      <div id="location-warning"
+           style="display:none;margin-top:12px;padding:10px;background:#fef9c3;border-radius:8px;font-size:13px;color:#854d0e;">
+      </div>
+      <div id="live-status"
+           style="margin-top:16px;font-size:13px;color:#6b7280;">
+        Not broadcasting
+      </div>
+    </div>
+  `;
+
+  document.getElementById('toggle-live-btn').addEventListener('click', () => {
+    if (isLiveBroadcasting) {
+      stopLocationBroadcast(routeId);
+      document.getElementById('live-status').textContent = 'Not broadcasting';
+    } else {
+      startLocationBroadcast(routeId);
+      document.getElementById('live-status').textContent = 'Broadcasting your location…';
+    }
+  });
+}
+
+function startLocationBroadcast(routeId) {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported on this device.');
+    return;
+  }
+
+  socket.emit('location:start', { routeId });
+  isLiveBroadcasting = true;
+  updateLiveBtnState(true);
+
+  locationWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      socket.emit('location:update', {
+        routeId,
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        speed: pos.coords.speed,
+        heading: pos.coords.heading
+      });
+    },
+    (err) => {
+      console.warn('Geolocation error:', err.message);
+      const warn = document.getElementById('location-warning');
+      if (warn) {
+        warn.textContent = 'Location error: ' + err.message;
+        warn.style.display = 'block';
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 5000 }
+  );
+}
+
+function stopLocationBroadcast(routeId) {
+  if (locationWatchId !== null) {
+    navigator.geolocation.clearWatch(locationWatchId);
+    locationWatchId = null;
+  }
+  if (isLiveBroadcasting) {
+    socket.emit('location:stop', { routeId });
+    isLiveBroadcasting = false;
+  }
+  updateLiveBtnState(false);
+}
+
+function updateLiveBtnState(active) {
+  const btn = document.getElementById('toggle-live-btn');
+  if (!btn) return;
+  btn.textContent = active ? '⏹ Stop Broadcasting' : '▶ Go Live';
+  btn.style.background = active ? '#ef4444' : '#22c55e';
+}
+
+// ─── PASSENGER LIVE MAP ────────────────────────────────
+let passengerMap = null;
+let driverMarker = null;
+let activeWatchRouteId = null;
+
+function initPassengerLiveMap(routeId) {
+  activeWatchRouteId = routeId;
+
+  const liveSection = document.getElementById('passenger-live-section');
+  if (!liveSection) return;
+
+  liveSection.innerHTML = `
+    <div style="position:relative;">
+      <div id="passenger-map"
+           style="width:100%;height:340px;border-radius:14px;overflow:hidden;border:1.5px solid #e5e7eb;">
+      </div>
+      <div id="map-status"
+           style="position:absolute;top:12px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.65);color:white;padding:6px 14px;border-radius:20px;font-size:12px;backdrop-filter:blur(4px);pointer-events:none;">
+        Waiting for driver location…
+      </div>
+    </div>
+  `;
+
+  passengerMap = L.map('passenger-map', { zoomControl: true }).setView([30.6, -96.3], 12);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(passengerMap);
+
+  const busIcon = L.divIcon({
+    html: `<div style="
+      width:36px;height:36px;background:#1a1a2e;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,0.35);
+      border:2px solid white;
+    ">🚌</div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    className: ''
+  });
+
+  driverMarker = L.marker([30.6, -96.3], { icon: busIcon })
+    .addTo(passengerMap)
+    .bindPopup('Driver location');
+  driverMarker.setOpacity(0);
+
+  socket.emit('route:watch', { routeId });
+
+  socket.on('location:broadcast', ({ lat, lng, timestamp }) => {
+    const pos = [lat, lng];
+    driverMarker.setLatLng(pos);
+    driverMarker.setOpacity(1);
+    passengerMap.panTo(pos, { animate: true, duration: 0.8 });
+
+    const statusEl = document.getElementById('map-status');
+    if (statusEl) {
+      const ago = Math.round((Date.now() - timestamp) / 1000);
+      statusEl.textContent = `Live · Updated ${ago}s ago`;
+      statusEl.style.background = 'rgba(34, 197, 94, 0.85)';
+    }
+  });
+
+  socket.on('driver:online', () => {
+    const statusEl = document.getElementById('map-status');
+    if (statusEl) statusEl.textContent = 'Driver is live…';
+  });
+
+  socket.on('driver:offline', () => {
+    const statusEl = document.getElementById('map-status');
+    if (statusEl) {
+      statusEl.textContent = 'Driver ended the trip';
+      statusEl.style.background = 'rgba(0,0,0,0.65)';
+    }
+    driverMarker.setOpacity(0.4);
+  });
+}
+
+function destroyPassengerMap() {
+  if (activeWatchRouteId) {
+    socket.emit('route:unwatch', { routeId: activeWatchRouteId });
+    socket.off('location:broadcast');
+    socket.off('driver:online');
+    socket.off('driver:offline');
+    activeWatchRouteId = null;
+  }
+  if (passengerMap) {
+    passengerMap.remove();
+    passengerMap = null;
+    driverMarker = null;
+  }
 }
 
 function showHelp(type) {

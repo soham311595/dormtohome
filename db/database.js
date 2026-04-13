@@ -2,6 +2,11 @@ const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
+function generateToken() {
+  return 'tk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+}
+module.exports.generateToken = generateToken;
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
@@ -82,6 +87,9 @@ async function createSchema() {
       checkin_status TEXT DEFAULT 'pending' CHECK(checkin_status IN ('pending','checked','missing')),
       booking_type TEXT DEFAULT 'seat' CHECK(booking_type IN ('seat','package')),
       amount_paid NUMERIC NOT NULL,
+      ticket_token TEXT UNIQUE,
+      checked_in INTEGER DEFAULT 0,
+      checked_in_at TEXT,
       booked_at TIMESTAMPTZ DEFAULT NOW()
     );
 
