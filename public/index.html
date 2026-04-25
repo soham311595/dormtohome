@@ -7,11 +7,15 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap">
 <script src="/socket.io/socket.io.js"></script>
 
-<!-- CDN scripts disabled to diagnose blank screen issue -->
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script> -->
-<!-- <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script> -->
-<!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" /> -->
-<!-- <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> -->
+<!-- QR Code generation (passenger ticket) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<!-- QR Code scanning (driver check-in) -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+<!-- Leaflet map (live location) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{--navy:#0B1D3A;--navy-dark:#060F20;--navy-mid:#122444;--navy-light:#1A2E50;--gold:#C9962A;--gold-light:#E8C547;--gold-pale:#F5E9C4;--white:#FFFFFF;--off-white:#F7F5F0;--gray-100:#F0EDE6;--gray-200:#E2DDD4;--gray-400:#9E9585;--gray-600:#6B6358;--success:#2E7D52;--error:#C0392B;--radius:12px;--radius-lg:20px;--shadow:0 4px 24px rgba(11,29,58,.12);--shadow-lg:0 12px 48px rgba(11,29,58,.22);--transition:all .22s cubic-bezier(.4,0,.2,1)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
