@@ -21,7 +21,8 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Invalid role' });
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim()))
+    const trimmedEmail = email.trim();
+    if (!emailRegex.test(trimmedEmail))
       return res.status(400).json({ error: 'Invalid email format' });
 
     if (phone && phone.trim()) {
@@ -38,43 +39,65 @@ router.post('/register', async (req, res) => {
         return res.status(400).json({ error: 'Invalid guardian phone number' });
     }
 
-    console.log('[REGISTER] Checking existing user:', email);
-    const { data: existingUser } = await supabase
+    console.log('[REGISTER] Checking existing user:', trimmedEmail);
+    const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
-      .single();
-    
+      .eq('email', trimmedEmail)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('[REGISTER] Check error:', checkError);
+    }
     if (existingUser) return res.status(409).json({ error: 'Email already registered' });
 
-    console.log('[REGISTER] Creating Supabase auth user:', email);
-    const { data: authData, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { first_name, last_name, phone, role }
-      }
-    });
+    console.log('[REGISTER] Creating Supabase auth user:', trimmedEmail);
+    let userId;
+    let authError;
 
-    if (error) {
-      console.error('[REGISTER] Auth error:', error);
-      return res.status(400).json({ error: error.message });
+    try {
+      const { data: authData, error } = await supabase.auth.admin.createUser({
+        email: trimmedEmail,
+        password,
+        email_confirm: true,
+        user_metadata: { first_name, last_name, phone, role }
+      });
+      authError = error;
+      if (authData?.user) userId = authData.user.id;
+    } catch {
+      console.log('[REGISTER] Falling back to signUp (admin.createUser unavailable)');
+      const { data: authData, error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password,
+        options: { data: { first_name, last_name, phone, role } }
+      });
+      authError = error;
+      if (authData?.user) userId = authData.user.id;
     }
 
-    console.log('[REGISTER] Creating profile for:', authData.user.id);
-    // Create profile immediately
+    if (authError) {
+      console.error('[REGISTER] Auth error:', authError);
+      if (authError.message?.includes('already been registered') || authError.message?.includes('already registered')) {
+        return res.status(409).json({ error: 'Email already registered' });
+      }
+      return res.status(400).json({ error: authError.message });
+    }
+
+    if (!userId) return res.status(500).json({ error: 'Failed to create user' });
+
+    console.log('[REGISTER] Creating profile for:', userId);
     await run(
-      `INSERT INTO users (id,first_name,last_name,email,phone,"role") VALUES ($1,$2,$3,$4,$5,$6)`,
-      [authData.user.id, first_name, last_name, email, phone || '', role]
+      `INSERT INTO users (id,first_name,last_name,email,phone,"role") VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET first_name=$2, last_name=$3`,
+      [userId, first_name, last_name, trimmedEmail, phone || '', role]
     );
 
     if (role === 'passenger' && (guardian_email || guardian_phone)) {
       await run(`INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs) VALUES ($1,$2,$3,$4,$5,$6)`,
-        [uuidv4(), authData.user.id, guardian_name || 'Guardian', guardian_email || '', guardian_phone || '', checkpoint_notifs ? 1 : 0]);
+        [uuidv4(), userId, guardian_name || 'Guardian', guardian_email || '', guardian_phone || '', checkpoint_notifs ? 1 : 0]);
     }
 
-    console.log('[REGISTER] Success for:', email);
-    res.json({ message: 'Registration successful. Please check your email to verify your account.' });
+    console.log('[REGISTER] Success for:', trimmedEmail);
+    res.json({ message: 'Registration successful. You can now sign in.' });
   } catch (e) { 
     console.error('[REGISTER] Exception:', e);
     res.status(500).json({ error: e.message }); 
@@ -87,25 +110,46 @@ router.post('/login', async (req, res) => {
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
 
     const { data: authData, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password
     });
 
-    if (error) return res.status(401).json({ error: 'Invalid credentials' });
+    if (error) {
+      const msg = error.message?.toLowerCase() || '';
+      if (msg.includes('email not confirmed') || msg.includes('email not verified')) {
+        return res.status(401).json({ error: 'Please verify your email before signing in.' });
+      }
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
 
     const user = authData.user;
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('users')
       .select('*')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (profileError) {
+      console.error('[LOGIN] Profile fetch error:', profileError);
+    }
+
+    if (!profile) {
+      console.log('[LOGIN] Profile not found for user, creating from auth metadata');
+      const meta = user.user_metadata || {};
+      await run(
+        `INSERT INTO users (id,first_name,last_name,email,phone,"role") VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
+        [user.id, meta.first_name || '', meta.last_name || '', user.email, meta.phone || '', meta.role || 'passenger']
+      );
+    }
+
+    const p = profile || { first_name: user.user_metadata?.first_name || '', last_name: user.user_metadata?.last_name || '', role: user.user_metadata?.role || 'passenger' };
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: profile?.role || 'passenger', first_name: profile?.first_name || '', last_name: profile?.last_name || '' },
+      { id: user.id, email: user.email, role: p.role, first_name: p.first_name, last_name: p.last_name },
       getSecret(req), { expiresIn: '30d' }
     );
 
-    res.json({ token, user: { id: user.id, first_name: profile?.first_name, last_name: profile?.last_name, email: user.email, role: profile?.role || 'passenger' } });
+    res.json({ token, user: { id: user.id, first_name: p.first_name, last_name: p.last_name, email: user.email, role: p.role } });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -115,9 +159,12 @@ router.get('/me', authMiddleware, async (req, res) => {
       .from('users')
       .select('*')
       .eq('id', req.user.id)
-      .single();
+      .maybeSingle();
 
-    if (error || !profile) return res.status(404).json({ error: 'User not found' });
+    if (error) {
+      console.error('[ME] Profile fetch error:', error);
+    }
+    if (!profile) return res.status(404).json({ error: 'User not found' });
     res.json(profile);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
