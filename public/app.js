@@ -712,7 +712,7 @@ function buildSeatModal(route, taken) {
   html += '</div>';
   html += `<div style="display:flex;gap:14px;margin:12px 0;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:white;border:2px solid var(--gray-300)"></div>Available</div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:.75px;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gold)"></div>Selected</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gold)"></div>Selected</div>
     <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gray-200)"></div>Taken</div>
   </div>`;
   html += `<div style="background:var(--gray-100);border-radius:8px;padding:10px 14px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px" id="seat-selected-info">No seat selected yet.</div>`;
@@ -1519,6 +1519,7 @@ function buildCheckinPage(route, manifest) {
     <div><div class="page-title">Check-In — ${route.route_number}</div><div class="page-sub">${route.from_city} → ${route.to_city} · ${fmtDate(route.departure_date)}</div></div>
     <span class="badge badge-green" id="ci-counter">${checked}/${manifest.length} Checked In</span>
   </div>
+  <div id="checkin-scanner-section"></div>
   <div style="background:var(--white);border:2px dashed var(--gold);border-radius:14px;padding:22px;text-align:center;cursor:pointer;margin-bottom:20px;transition:var(--transition)" onclick="simulateScan()" onmouseover="this.style.background='rgba(201,150,42,.04)'" onmouseout="this.style.background='var(--white)'">
     <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" width="36" height="36" style="margin:0 auto 10px;display:block"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/><rect x="20" y="14" width="2" height="2"/><rect x="14" y="20" width="2" height="2"/></svg>
     <div style="font-weight:600;color:var(--navy)">Scan Passenger QR Code</div>
@@ -2190,14 +2191,15 @@ function startLocationBroadcast(routeId) {
     alert('Geolocation is not supported on this device.');
     return;
   }
+  if (!S.socket) return;
 
-  socket.emit('location:start', { routeId });
+  S.socket.emit('location:start', { routeId });
   isLiveBroadcasting = true;
   updateLiveBtnState(true);
 
   locationWatchId = navigator.geolocation.watchPosition(
     (pos) => {
-      socket.emit('location:update', {
+      S.socket.emit('location:update', {
         routeId,
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -2222,8 +2224,8 @@ function stopLocationBroadcast(routeId) {
     navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = null;
   }
-  if (isLiveBroadcasting) {
-    socket.emit('location:stop', { routeId });
+  if (isLiveBroadcasting && S.socket) {
+    S.socket.emit('location:stop', { routeId });
     isLiveBroadcasting = false;
   }
   updateLiveBtnState(false);
@@ -2283,43 +2285,45 @@ function initPassengerLiveMap(routeId) {
     .bindPopup('Driver location');
   driverMarker.setOpacity(0);
 
-  socket.emit('route:watch', { routeId });
+  if (S.socket) {
+    S.socket.emit('route:watch', { routeId });
 
-  socket.on('location:broadcast', ({ lat, lng, timestamp }) => {
-    const pos = [lat, lng];
-    driverMarker.setLatLng(pos);
-    driverMarker.setOpacity(1);
-    passengerMap.panTo(pos, { animate: true, duration: 0.8 });
+    S.socket.on('location:broadcast', ({ lat, lng, timestamp }) => {
+      const pos = [lat, lng];
+      driverMarker.setLatLng(pos);
+      driverMarker.setOpacity(1);
+      passengerMap.panTo(pos, { animate: true, duration: 0.8 });
 
-    const statusEl = document.getElementById('map-status');
-    if (statusEl) {
-      const ago = Math.round((Date.now() - timestamp) / 1000);
-      statusEl.textContent = `Live · Updated ${ago}s ago`;
-      statusEl.style.background = 'rgba(34, 197, 94, 0.85)';
-    }
-  });
+      const statusEl = document.getElementById('map-status');
+      if (statusEl) {
+        const ago = Math.round((Date.now() - timestamp) / 1000);
+        statusEl.textContent = `Live · Updated ${ago}s ago`;
+        statusEl.style.background = 'rgba(34, 197, 94, 0.85)';
+      }
+    });
 
-  socket.on('driver:online', () => {
-    const statusEl = document.getElementById('map-status');
-    if (statusEl) statusEl.textContent = 'Driver is live…';
-  });
+    S.socket.on('driver:online', () => {
+      const statusEl = document.getElementById('map-status');
+      if (statusEl) statusEl.textContent = 'Driver is live…';
+    });
 
-  socket.on('driver:offline', () => {
-    const statusEl = document.getElementById('map-status');
-    if (statusEl) {
-      statusEl.textContent = 'Driver ended the trip';
-      statusEl.style.background = 'rgba(0,0,0,0.65)';
-    }
-    driverMarker.setOpacity(0.4);
-  });
+    S.socket.on('driver:offline', () => {
+      const statusEl = document.getElementById('map-status');
+      if (statusEl) {
+        statusEl.textContent = 'Driver ended the trip';
+        statusEl.style.background = 'rgba(0,0,0,0.65)';
+      }
+      driverMarker.setOpacity(0.4);
+    });
+  }
 }
 
 function destroyPassengerMap() {
-  if (activeWatchRouteId) {
-    socket.emit('route:unwatch', { routeId: activeWatchRouteId });
-    socket.off('location:broadcast');
-    socket.off('driver:online');
-    socket.off('driver:offline');
+  if (activeWatchRouteId && S.socket) {
+    S.socket.emit('route:unwatch', { routeId: activeWatchRouteId });
+    S.socket.off('location:broadcast');
+    S.socket.off('driver:online');
+    S.socket.off('driver:offline');
     activeWatchRouteId = null;
   }
   if (passengerMap) {
