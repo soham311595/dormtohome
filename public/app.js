@@ -75,6 +75,16 @@ const CITIES = [
   {n:'Corpus Christi',s:'TX',z:'78401'},{n:'San Marcos',s:'TX',z:'78666'},
   {n:'Denton',s:'TX',z:'76201'},{n:'Pearland',s:'TX',z:'77581'},
   {n:'Pflugerville',s:'TX',z:'78660'},{n:'Georgetown',s:'TX',z:'78626'},
+  {n:'Allen',s:'TX',z:'75002'},{n:'Arlington',s:'TX',z:'76010'},
+  {n:'Bedford',s:'TX',z:'76021'},{n:'Carrollton',s:'TX',z:'75006'},
+  {n:'Cedar Hill',s:'TX',z:'75104'},{n:'Coppell',s:'TX',z:'75019'},
+  {n:'Euless',s:'TX',z:'76039'},{n:'Flower Mound',s:'TX',z:'75028'},
+  {n:'Frisco',s:'TX',z:'75034'},{n:'Garland',s:'TX',z:'75040'},
+  {n:'Grand Prairie',s:'TX',z:'75050'},{n:'Grapevine',s:'TX',z:'76051'},
+  {n:'Irving',s:'TX',z:'75038'},{n:'Lewisville',s:'TX',z:'75067'},
+  {n:'McKinney',s:'TX',z:'75069'},{n:'Mesquite',s:'TX',z:'75149'},
+  {n:'Richardson',s:'TX',z:'75080'},{n:'Rockwall',s:'TX',z:'75087'},
+  {n:'Rowlett',s:'TX',z:'75088'},
 ];
 
 // ─── API ───────────────────────────────────────────────────
