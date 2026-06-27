@@ -20,6 +20,8 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 app.use(express.json());
+// Static files first — before API routes and catch-all
+app.use(express.static(path.join(__dirname, 'public')));
 
 const rateLimit = require('express-rate-limit');
 const isDev = process.env.NODE_ENV !== 'production';
@@ -71,8 +73,6 @@ app.post('/dev/seed-test-users', async (req, res) => {
     res.json({ message: 'Test users seeded', results });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
-// Static files — must come before the catch-all to avoid interference
-app.use(express.static(path.join(__dirname, 'public')));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // ─── SOCKET.IO ────────────────────────────────────────────
