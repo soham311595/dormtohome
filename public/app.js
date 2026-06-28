@@ -883,7 +883,7 @@ function buildTicketCard(b) {
     <div style="padding:18px 22px">
       <div style="display:flex;justify-content:space-between;margin-bottom:12px">
         <span class="route-num">${b.route_number}</span>
-        <span class="badge ${b.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${b.checkin_status === 'checked' ? '✓ Checked In' : 'Pending'}</span>
+        <span class="badge ${b.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${b.checkin_status === 'checked' ? '✓ Checked In' : 'Confirmed'}</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.from_city}</div><div class="text-xs text-muted">${b.departure_time}</div></div>
