@@ -3,7 +3,7 @@ const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const { all, get, run } = require('../db/database');
 const { generateToken } = require('../db/database');
-const { authMiddleware, requireRole } = require('../middleware/auth');
+const { authMiddleware, requireRole, optionalAuth } = require('../middleware/auth');
 
 // ── BOOKINGS ──────────────────────────────────────────────
 
@@ -118,14 +118,21 @@ router.post('/bookings/checkin', authMiddleware, requireRole('driver'), async (r
 
 // ── REQUESTS ──────────────────────────────────────────────
 
-router.get('/requests', async (req, res) => {
+router.get('/requests', optionalAuth, async (req, res) => {
   try {
     const reqs = await all(`
       SELECT rr.*, u.first_name || ' ' || u.last_name as requester_name
       FROM route_requests rr JOIN users u ON rr.requester_id=u.id
       WHERE rr.status='open'
       ORDER BY rr.supporter_count DESC, rr.created_at DESC`);
-    res.json(reqs);
+    const userId = req.user?.id;
+    const enriched = userId
+      ? await Promise.all(reqs.map(async (r) => {
+          const row = await get('SELECT 1 FROM route_request_supports WHERE request_id=$1 AND user_id=$2', [r.id, userId]);
+          return { ...r, supported_by_me: !!row };
+        }))
+      : reqs.map(r => ({ ...r, supported_by_me: false }));
+    res.json(enriched);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 

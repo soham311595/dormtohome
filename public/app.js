@@ -288,7 +288,7 @@ async function renderPassengerRoutes() {
     const query = params.toString();
     const routes = await api('GET', `/routes${query ? '?' + query : ''}`, null, false);
     S.allRoutes = routes;
-    const reqs = await api('GET', '/requests', null, false);
+    const reqs = await api('GET', '/requests');
     S.requests = reqs;
     document.getElementById('p-content').innerHTML = buildRoutesPage(routes, reqs);
   } catch (e) { toast(e.message, 'error'); }
@@ -391,7 +391,9 @@ function buildReqCard(r) {
     </div>
     ${S.user && r.requester_id === S.user.id
       ? `<button class="btn btn-sm" style="background:var(--gray-200);color:var(--gray-500);cursor:default" disabled>Your Request</button>`
-      : `<button class="btn btn-outline-gold btn-sm" id="rbtn-${r.id}" data-rid="${r.id}" data-action="support-req">Support Route</button>`}
+      : r.supported_by_me
+        ? `<button class="btn btn-success btn-sm" disabled>✓ Supported</button>`
+        : `<button class="btn btn-outline-gold btn-sm" id="rbtn-${r.id}" data-rid="${r.id}" data-action="support-req">Support Route</button>`}
   </div>`;
 }
 
