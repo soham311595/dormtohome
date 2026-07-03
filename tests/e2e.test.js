@@ -289,8 +289,8 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     if (hasTickets) {
       // Tabs are present
-      await expect(passenger.getByText('Active Tickets')).toBeVisible({ timeout: 3000 });
-      await expect(passenger.getByText('Inactive Tickets')).toBeVisible({ timeout: 3000 });
+      await expect(passenger.getByText('Active Tickets', { exact: true })).toBeVisible({ timeout: 3000 });
+      await expect(passenger.getByText('Inactive Tickets', { exact: true })).toBeVisible({ timeout: 3000 });
 
       // Click a ticket to open modal
       const ticketCard = passenger.locator('[onclick*="openTicket"]').first();
