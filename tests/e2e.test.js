@@ -27,6 +27,14 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await page.waitForTimeout(4000);
   }
 
+  // ─── WARMUP: wake Render free tier ──────────────────────
+
+  test('Warmup: wake the server', async () => {
+    test.setTimeout(120000);
+    await page.goto('/', { waitUntil: 'networkidle', timeout: 60000 });
+    await page.waitForLoadState('networkidle', { timeout: 60000 });
+  });
+
   // ─── TEST 1: LANDING PAGE ────────────────────────────────
 
   test('Test 1: Landing Page loads with all key elements', async () => {
@@ -95,7 +103,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Routes should load
     await waitForSpinner();
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(5000);
     await expect(page.locator('#screen-passenger .route-card').first()).toBeVisible({ timeout: 30000 });
     const routeCards = await page.locator('#screen-passenger .route-card').count();
     expect(routeCards).toBeGreaterThan(0);
