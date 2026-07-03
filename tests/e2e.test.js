@@ -456,7 +456,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Driver dashboard with analytics
     await expect(driver.getByText('Driver Dashboard')).toBeVisible({ timeout: 10000 });
-    await expect(driver.getByText('My Routes')).toBeVisible({ timeout: 5000 });
+    await expect(driver.locator('.nav-item', { hasText: 'My Routes' })).toBeVisible({ timeout: 5000 });
     await expect(driver.getByText('Total Passengers')).toBeVisible({ timeout: 5000 });
     await expect(driver.getByText('Upcoming Trips')).toBeVisible({ timeout: 5000 });
     await expect(driver.getByText('Location Sharing')).toBeVisible({ timeout: 5000 });
