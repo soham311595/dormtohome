@@ -1,0 +1,333 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: e2e.test.js >> DormToHome E2E Tests >> Test 10: Driver login and all driver features
+- Location: tests/e2e.test.js:448:3
+
+# Error details
+
+```
+Error: expect(locator).toBeVisible() failed
+
+Locator: locator('#screen-driver').getByText('Location Sharing')
+Expected: visible
+Error: strict mode violation: locator('#screen-driver').getByText('Location Sharing') resolved to 2 elements:
+    1) <div class="section-title">Location Sharing</div> aka getByText('Location Sharing', { exact: true })
+    2) <div class="text-sm">…</div> aka getByText('Location sharing is active')
+
+Call log:
+  - Expect "toBeVisible" with timeout 5000ms
+  - waiting for locator('#screen-driver').getByText('Location Sharing')
+
+```
+
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic:
+    - generic [ref=e2]:
+      - generic [ref=e3]: ℹ
+      - generic [ref=e4]: Signed out
+    - generic [ref=e5]:
+      - generic [ref=e6]: ✓
+      - generic [ref=e7]: Welcome back, Marcus!
+  - generic [ref=e9]:
+    - banner [ref=e10]:
+      - generic [ref=e11] [cursor=pointer]:
+        - img [ref=e13]
+        - generic [ref=e16]: DormToHome
+      - navigation [ref=e17]:
+        - generic [ref=e18] [cursor=pointer]: Dashboard
+        - generic [ref=e19] [cursor=pointer]: My Routes
+        - generic [ref=e20] [cursor=pointer]: New Route
+        - generic [ref=e21] [cursor=pointer]: Check-In
+        - generic [ref=e22] [cursor=pointer]: Live
+        - generic [ref=e23] [cursor=pointer]: Requests
+        - generic [ref=e24] [cursor=pointer]: Messages
+      - generic [ref=e26]:
+        - generic [ref=e27]: Live
+        - button [ref=e29] [cursor=pointer]:
+          - img [ref=e30]
+        - generic [ref=e34] [cursor=pointer]: MD
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - generic [ref=e38]: Driver Dashboard
+          - generic [ref=e39]: Marcus Davis
+        - generic [ref=e40]:
+          - button "Sign Out" [ref=e41] [cursor=pointer]
+          - button "Send Update" [ref=e42] [cursor=pointer]:
+            - img [ref=e43]
+            - text: Send Update
+          - button "+ New Route" [ref=e46] [cursor=pointer]
+      - generic [ref=e47]:
+        - generic [ref=e48]:
+          - generic [ref=e49]: "6"
+          - generic [ref=e50]: My Routes
+          - generic [ref=e51]: ↑ +2
+        - generic [ref=e61]:
+          - generic [ref=e62]: "4"
+          - generic [ref=e63]: Total Passengers
+          - generic [ref=e64]: ↑ +18
+        - generic [ref=e74]:
+          - generic [ref=e75]: $139
+          - generic [ref=e76]: Revenue (Est.)
+          - generic [ref=e77]: ↑ +$340
+        - generic [ref=e87]:
+          - generic [ref=e88]: "4.92"
+          - generic [ref=e89]: Avg. Rating
+          - generic [ref=e90]: ↑ +0.1
+      - generic [ref=e100]:
+        - generic [ref=e101]:
+          - generic [ref=e102]:
+            - generic [ref=e103]: Upcoming Trips
+            - button "View All" [ref=e104] [cursor=pointer]
+          - generic [ref=e105]:
+            - generic [ref=e106]:
+              - generic [ref=e107]: College Station → Houston
+              - generic [ref=e108]:
+                - text: August 15, 2026 · 08:00 AM ·
+                - generic [ref=e109]: DTH-201
+            - button "Check-In" [ref=e110] [cursor=pointer]
+          - generic [ref=e111]:
+            - generic [ref=e112]:
+              - generic [ref=e113]: College Station → Dallas
+              - generic [ref=e114]:
+                - text: September 5, 2026 · 07:00 AM ·
+                - generic [ref=e115]: DTH-203
+            - button "Check-In" [ref=e116] [cursor=pointer]
+          - generic [ref=e117]:
+            - generic [ref=e118]:
+              - generic [ref=e119]: College Station → San Antonio
+              - generic [ref=e120]:
+                - text: September 15, 2026 · 10:00 AM ·
+                - generic [ref=e121]: DTH-205
+            - button "Check-In" [ref=e122] [cursor=pointer]
+          - generic [ref=e123]:
+            - generic [ref=e124]:
+              - generic [ref=e125]: Austin → Dallas
+              - generic [ref=e126]:
+                - text: September 20, 2026 · 06:30 AM ·
+                - generic [ref=e127]: DTH-206
+            - button "Check-In" [ref=e128] [cursor=pointer]
+          - generic [ref=e129]:
+            - generic [ref=e130]:
+              - generic [ref=e131]: Dallas → College Station
+              - generic [ref=e132]:
+                - text: October 1, 2026 · 01:00 PM ·
+                - generic [ref=e133]: DTH-208
+            - button "Check-In" [ref=e134] [cursor=pointer]
+        - generic [ref=e135]:
+          - generic [ref=e136]: Location Sharing
+          - generic [ref=e139]:
+            - text: Location sharing is
+            - strong [ref=e140]: active
+          - generic [ref=e142]: Your location updates every 10 seconds while on an active trip. Passengers and guardians can see your live position on the map.
+          - generic [ref=e143]: Quick Actions
+          - generic [ref=e144]:
+            - button "Open Check-In" [ref=e145] [cursor=pointer]
+            - button "View Requests" [ref=e146] [cursor=pointer]
+            - button "Create Route" [ref=e147] [cursor=pointer]
+            - button "Send Update" [ref=e148] [cursor=pointer]
+```
+
+# Test source
+
+```ts
+  362 |   });
+  363 | 
+  364 |   // ─── TEST 8: ACCOUNT PAGE ─────────────────────────────
+  365 | 
+  366 |   test('Test 8: Account page profile editing and guardian management', async () => {
+  367 |     await page.locator('#screen-passenger [data-tab="account"]').click();
+  368 |     await waitForSpinner();
+  369 | 
+  370 |     const passenger = page.locator('#screen-passenger');
+  371 | 
+  372 |     // Profile section
+  373 |     await expect(passenger.getByText('Account Settings')).toBeVisible({ timeout: 5000 });
+  374 |     await expect(passenger.getByText('Profile')).toBeVisible({ timeout: 3000 });
+  375 | 
+  376 |     // Avatar initials should be visible
+  377 |     await expect(passenger.locator('#p-avatar')).toBeVisible({ timeout: 3000 });
+  378 | 
+  379 |     // Edit first name
+  380 |     const firstNameInput = passenger.locator('#acc-first');
+  381 |     await expect(firstNameInput).toBeVisible({ timeout: 3000 });
+  382 |     const originalName = await firstNameInput.inputValue();
+  383 |     const newName = originalName + 'E2E';
+  384 |     await firstNameInput.fill(newName);
+  385 | 
+  386 |     // Save changes
+  387 |     await passenger.locator('button', { hasText: 'Save Changes' }).click();
+  388 |     const toast = await waitForToast('success');
+  389 |     await expect(toast).toContainText('Profile saved');
+  390 |     await clearToast();
+  391 | 
+  392 |     // Restore original name
+  393 |     await firstNameInput.fill(originalName);
+  394 |     await passenger.locator('button', { hasText: 'Save Changes' }).click();
+  395 |     await waitForToast('success');
+  396 |     await clearToast();
+  397 | 
+  398 |     // Guardian section
+  399 |     await expect(passenger.getByText('Guardian Contacts')).toBeVisible({ timeout: 3000 });
+  400 | 
+  401 |     // Add a guardian
+  402 |     await passenger.locator('button', { hasText: '+ Add' }).click();
+  403 |     await expect(page.locator('#guardian-add-form')).toBeVisible({ timeout: 3000 });
+  404 | 
+  405 |     const guardianName = `E2E Guardian ${Date.now()}`;
+  406 |     const guardianEmail = `e2e${Date.now()}@test.com`;
+  407 |     const guardianPhone = '5551234567';
+  408 | 
+  409 |     await page.fill('#g-add-name', guardianName);
+  410 |     await page.fill('#g-add-email', guardianEmail);
+  411 |     await page.fill('#g-add-phone', guardianPhone);
+  412 | 
+  413 |     // Save guardian
+  414 |     await page.locator('#guardian-add-form button', { hasText: 'Save Guardian' }).click();
+  415 |     await waitForToast('success');
+  416 |     await clearToast();
+  417 | 
+  418 |     // Verify guardian card appears in the list
+  419 |     await expect(page.locator(`#guardian-list`)).toContainText(guardianName, { timeout: 5000 });
+  420 |     await expect(page.locator(`#guardian-list`)).toContainText(guardianEmail, { timeout: 3000 });
+  421 | 
+  422 |     // Remove the guardian we just added
+  423 |     const removeBtn = passenger.locator('#guardian-list').locator('button', { hasText: 'Remove' }).last();
+  424 |     await expect(removeBtn).toBeVisible({ timeout: 3000 });
+  425 |     await removeBtn.click();
+  426 |     await page.waitForTimeout(500);
+  427 |     await waitForToast('success');
+  428 |     await clearToast();
+  429 |   });
+  430 | 
+  431 |   // ─── TEST 9: SIGN OUT ────────────────────────────────
+  432 | 
+  433 |   test('Test 9: Sign Out redirects to login', async () => {
+  434 |     await page.locator('#screen-passenger [data-tab="account"]').click();
+  435 |     await waitForSpinner();
+  436 | 
+  437 |     // Click Sign Out button on account page
+  438 |     const signOutBtn = page.locator('#screen-passenger button', { hasText: 'Sign Out' }).last();
+  439 |     await expect(signOutBtn).toBeVisible({ timeout: 3000 });
+  440 |     await signOutBtn.click();
+  441 | 
+  442 |     // Confirm dialog is auto-accepted by the handler
+  443 |     await expect(page.locator('#screen-login')).toBeVisible({ timeout: 5000 });
+  444 |   });
+  445 | 
+  446 |   // ─── TEST 10: DRIVER LOGIN AND DASHBOARD ──────────────
+  447 | 
+  448 |   test('Test 10: Driver login and all driver features', async () => {
+  449 |     // Sign in as driver
+  450 |     await page.fill('#login-email', 'marcus@dormtohome.com');
+  451 |     await page.fill('#login-pass', 'password123');
+  452 |     await page.locator('#login-btn').click();
+  453 |     await expect(page.locator('#screen-driver')).toBeVisible({ timeout: 12000 });
+  454 | 
+  455 |     const driver = page.locator('#screen-driver');
+  456 | 
+  457 |     // Driver dashboard with analytics
+  458 |     await expect(driver.getByText('Driver Dashboard')).toBeVisible({ timeout: 10000 });
+  459 |     await expect(driver.locator('.nav-item', { hasText: 'My Routes' })).toBeVisible({ timeout: 5000 });
+  460 |     await expect(driver.getByText('Total Passengers')).toBeVisible({ timeout: 5000 });
+  461 |     await expect(driver.getByText('Upcoming Trips')).toBeVisible({ timeout: 5000 });
+> 462 |     await expect(driver.getByText('Location Sharing')).toBeVisible({ timeout: 5000 });
+      |                                                        ^ Error: expect(locator).toBeVisible() failed
+  463 | 
+  464 |     // My Routes
+  465 |     await driver.locator('[data-tab="routes"]').click();
+  466 |     await waitForSpinner();
+  467 |     await expect(driver.getByText('My Routes')).toBeVisible({ timeout: 5000 });
+  468 |     const hasDriverRoutes = await driver.locator('.route-card').first().isVisible().catch(() => false);
+  469 |     if (hasDriverRoutes) {
+  470 |       await expect(driver.locator('.route-card').first()).toBeVisible({ timeout: 5000 });
+  471 |     }
+  472 | 
+  473 |     // New Route creation wizard
+  474 |     await driver.locator('[data-tab="create"]').click();
+  475 |     await expect(driver.getByText('Create New Route')).toBeVisible({ timeout: 5000 });
+  476 |     await expect(driver.getByText('Route Information')).toBeVisible({ timeout: 3000 });
+  477 | 
+  478 |     // Step 1: Route Info
+  479 |     await page.fill('#cr-from', 'College Station, TX');
+  480 |     await page.fill('#cr-to', 'Dallas, TX');
+  481 |     await page.fill('#cr-date', '2026-08-01');
+  482 |     await page.fill('#cr-dep-time', '08:00');
+  483 |     await page.fill('#cr-duration', '3h 30m');
+  484 |     await driver.locator('button', { hasText: 'Next: Stops' }).click();
+  485 | 
+  486 |     // Step 2: Stops & Checkpoints
+  487 |     await expect(driver.getByText('Stops & Checkpoints')).toBeVisible({ timeout: 3000 });
+  488 |     await driver.locator('button', { hasText: 'Next: Seats' }).click();
+  489 | 
+  490 |     // Step 3: Seats & Pricing
+  491 |     await expect(driver.getByText('Seats & Pricing')).toBeVisible({ timeout: 3000 });
+  492 |     await page.fill('#cr-price', '35');
+  493 |     await driver.locator('button', { hasText: 'Review' }).click();
+  494 | 
+  495 |     // Step 4: Review & Post
+  496 |     await expect(driver.getByText('Review & Post')).toBeVisible({ timeout: 3000 });
+  497 |     await expect(driver.getByText('Route Preview')).toBeVisible({ timeout: 3000 });
+  498 | 
+  499 |     // Cancel — don't post a real route
+  500 |     await driver.locator('button', { hasText: '← Edit' }).click();
+  501 |     await expect(driver.getByText('Seats & Pricing')).toBeVisible({ timeout: 3000 });
+  502 |     await driver.locator('[data-tab="routes"]').click();
+  503 |     await waitForSpinner();
+  504 | 
+  505 |     // Requests tab
+  506 |     await driver.locator('[data-tab="requested"]').click();
+  507 |     await waitForSpinner();
+  508 |     await expect(driver.getByText('Passenger Requests')).toBeVisible({ timeout: 5000 });
+  509 |     const hasRequests = await driver.locator('.card-sm').first().isVisible().catch(() => false);
+  510 |     if (hasRequests) {
+  511 |       await expect(driver.locator('.card-sm').first()).toBeVisible({ timeout: 5000 });
+  512 |     }
+  513 | 
+  514 |     // Messages tab (driver)
+  515 |     await driver.locator('[data-tab="messages"]').click();
+  516 |     await waitForSpinner();
+  517 |     const driverChat = driver.locator('.chat-sidebar');
+  518 |     if (await driverChat.isVisible({ timeout: 5000 }).catch(() => false)) {
+  519 |       await expect(driver.locator('.chat-room-item').first()).toBeVisible({ timeout: 5000 });
+  520 |       const driverInput = driver.locator('#chat-input');
+  521 |       if (await driverInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+  522 |         await driverInput.fill(`Driver test message ${Date.now()}`);
+  523 |         await driver.locator('button', { hasText: 'Send' }).click();
+  524 |         await page.waitForTimeout(1500);
+  525 |         const lastMsg = driver.locator('.chat-msg').last();
+  526 |         await expect(lastMsg).toContainText('Driver test message', { timeout: 5000 });
+  527 |       }
+  528 |     }
+  529 | 
+  530 |     // Sign out from driver account
+  531 |     await driver.locator('[data-tab="dashboard"]').click();
+  532 |     await waitForSpinner();
+  533 |     const signOutBtns = driver.locator('button', { hasText: 'Sign Out' });
+  534 |     const count = await signOutBtns.count();
+  535 |     if (count > 0) {
+  536 |       await signOutBtns.first().click();
+  537 |       await expect(page.locator('#screen-login')).toBeVisible({ timeout: 5000 });
+  538 |     }
+  539 |   });
+  540 | 
+  541 |   // ─── TEST 11: LANDING PAGE REVISIT ────────────────────
+  542 | 
+  543 |   test('Test 11: Landing page is accessible after sign out', async () => {
+  544 |     // Should be on login screen now
+  545 |     await page.locator('#screen-login .auth-link a', { hasText: 'Home' }).click();
+  546 |     await expect(page.locator('#screen-landing')).toBeVisible({ timeout: 5000 });
+  547 |     await expect(page.locator('#screen-landing .hero-title')).toBeVisible({ timeout: 3000 });
+  548 |   });
+  549 | });
+  550 | 
+```

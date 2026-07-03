@@ -216,7 +216,7 @@ function logout() {
   if (S.socket) S.socket.disconnect();
   if (S.locationInterval) { clearInterval(S.locationInterval); S.locationInterval = null; }
   if (S.busAnimInterval) { clearInterval(S.busAnimInterval); S.busAnimInterval = null; }
-  showScreen('screen-login');
+  showScreen('screen-landing');
   toast('Signed out');
 }
 
