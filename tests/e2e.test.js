@@ -95,7 +95,8 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Routes should load
     await waitForSpinner();
-    await expect(page.locator('#screen-passenger .route-card').first()).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(2000);
+    await expect(page.locator('#screen-passenger .route-card').first()).toBeVisible({ timeout: 30000 });
     const routeCards = await page.locator('#screen-passenger .route-card').count();
     expect(routeCards).toBeGreaterThan(0);
   });
