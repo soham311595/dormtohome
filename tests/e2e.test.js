@@ -299,9 +299,9 @@ test.describe.serial('DormToHome E2E Tests', () => {
       await expect(page.locator('#modal-ticket.open')).toBeVisible({ timeout: 5000 });
 
       // Modal should show ticket details
-      await expect(page.getByText('Route')).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('SEAT')).toBeVisible({ timeout: 3000 });
-      await expect(page.getByText('DRIVER')).toBeVisible({ timeout: 3000 });
+      await expect(page.locator('#modal-ticket-body')).toContainText('Route', { timeout: 3000 });
+      await expect(page.locator('#modal-ticket-body')).toContainText('SEAT', { timeout: 3000 });
+      await expect(page.locator('#modal-ticket-body')).toContainText('DRIVER', { timeout: 3000 });
 
       // QR code should render (wait for the async renderTicketQR)
       await page.waitForTimeout(2000);
