@@ -97,9 +97,28 @@ test.describe.serial('DormToHome E2E Tests', () => {
     // Correct passenger credentials
     await page.fill('#login-email', 'alex@tamu.edu');
     await page.fill('#login-pass', 'password123');
+
+    // Intercept /api/routes to debug why routes might not show
+    const routesPromise = page.waitForResponse(
+      res => res.url().includes('/api/routes'),
+      { timeout: 30000 }
+    );
+
     await page.locator('#login-btn').click();
     await expect(page.locator('#screen-passenger')).toBeVisible({ timeout: 12000 });
     await expect(page.locator('#p-avatar')).toBeVisible();
+
+    // Log the /api/routes response for debugging
+    try {
+      const routesRes = await routesPromise;
+      const routesStatus = routesRes.status();
+      let routesBody;
+      try { routesBody = await routesRes.text(); } catch { routesBody = '(unable to read)'; }
+      console.log(`[DEBUG] /api/routes → status ${routesStatus}`);
+      console.log(`[DEBUG] /api/routes body: ${routesBody.slice(0, 3000)}`);
+    } catch (e) {
+      console.log(`[DEBUG] /api/routes never fired or errored: ${e.message}`);
+    }
 
     // Routes should load
     await waitForSpinner();
