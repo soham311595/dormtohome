@@ -256,6 +256,7 @@ function pTab(tab) {
 function dTab(tab) {
   S.dTab = tab;
   if (S.busAnimInterval) { clearInterval(S.busAnimInterval); S.busAnimInterval = null; }
+  if (S.activeRouteId) { S.activeRouteId = null; }
   document.querySelectorAll('#screen-driver .nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === tab);
   });
@@ -752,12 +753,11 @@ async function renderActiveTrips() {
   try {
     const bookings = await api('GET', '/bookings/mine');
     S.myBookings = bookings;
-    const active = bookings.filter(b => b.status !== 'cancelled');
-    document.getElementById('p-content').innerHTML = buildActiveTripsPage(active);
-    if (active.length) {
+    document.getElementById('p-content').innerHTML = buildActiveTripsPage(bookings);
+    if (bookings.length) {
       animateBus();
       // Join route room for live updates
-      const firstActive = active[0];
+      const firstActive = bookings[0];
       if (S.socket) {
         S.socket.emit('join_route_room', firstActive.route_id);
         S.chatRoute = firstActive.route_id;
@@ -930,11 +930,6 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
       <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy)">${from} → ${to}</div>
       <div class="text-sm text-muted">${date} · ${time}</div>
     </div>
-    <div id="qr-ticket-container" style="background:var(--navy);border-radius:16px;padding:24px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
-      <div style="background:white;padding:16px;border-radius:12px;display:flex;align-items:center;justify-content:center">
-        <canvas id="qr-ticket-large" width="144" height="144"></canvas>
-      </div>
-    </div>
     <div style="text-align:center;font-size:.78rem;color:var(--gray-400);margin-bottom:16px">Show this to your driver at boarding</div>
     <div style="flex-direction:row;font-size:.85rem;color:var(--gray-400);text-align:center"></div>
     <div style="background:var(--gray-100);border-radius:10px;padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center">
@@ -946,13 +941,7 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
     </div>
     <div id="ticket-qr-canvas"></div>`;
   openModal('modal-ticket');
-  setTimeout(() => {
-    const canvas = document.getElementById('qr-ticket-large');
-    if (canvas && typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, `dormtohome:ticket:${id}`, { width: 144, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
-    }
-    renderTicketQR(id);
-  }, 100);
+  setTimeout(() => renderTicketQR(id), 100);
 }
 
 // ─── MESSAGES ────────────────────────────────────────────
@@ -1892,7 +1881,15 @@ function reqNext() {
   S.reqStep = Math.min(5, S.reqStep + 1);
   showRequestStep();
 }
-function reqBack() { S.reqStep = Math.max(1, S.reqStep - 1); showRequestStep(); }
+function reqBack() {
+  if (S.reqStep === 2) S.reqData.to_city = document.getElementById('req-to')?.value;
+  if (S.reqStep === 3) S.reqData.requested_date = document.getElementById('req-date')?.value;
+  if (S.reqStep === 4) {
+    S.reqData.requested_time = document.getElementById('req-dep')?.value;
+    S.reqData.arrival_time = document.getElementById('req-arr')?.value;
+  }
+  S.reqStep = Math.max(1, S.reqStep - 1); showRequestStep();
+}
 
 function cancelRequest() {
   if (confirm('Are you sure you want to cancel? Your progress will be lost.')) {
@@ -1924,12 +1921,9 @@ async function postRequest() {
   btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
   try {
     await api('POST', '/requests', S.reqData);
-    pTab('routes');
     toast('Route request posted!', 'success');
-    setTimeout(() => {
-      const tab = document.querySelector('.tab:not(.active)');
-      if (tab) tab.click();
-    }, 300);
+    openModal('modal-req-ok');
+    pTab('routes');
   } catch (e) { toast(e.message, 'error'); btn.innerHTML = 'Post Request'; btn.disabled = false; }
 }
 
@@ -2054,7 +2048,7 @@ async function renderTicketQR(bookingId) {
       qrCanvas.style.borderRadius = '8px';
       qrDiv.appendChild(qrCanvas);
       try {
-        QRCode.toCanvas(qrCanvas, data.ticket_token, {
+        await QRCode.toCanvas(qrCanvas, data.ticket_token, {
           width: 200,
           margin: 1,
           color: { dark: '#1a1a2e', light: '#ffffff' }
@@ -2087,6 +2081,7 @@ async function renderTicketQR(bookingId) {
 
 // ─── DRIVER QR CHECK-IN ────────────────────────────────
 let html5QrScanner = null;
+let checkinListenersAttached = false;
 
 function initCheckinScanner() {
   const scannerSection = document.getElementById('checkin-scanner-section');
@@ -2132,16 +2127,27 @@ function initCheckinScanner() {
     );
   }
 
-  document.getElementById('manual-checkin-btn').addEventListener('click', () => {
-    const val = document.getElementById('manual-token-input').value.trim();
-    if (val) processCheckin(val);
-  });
-  document.getElementById('manual-token-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const val = e.target.value.trim();
+  if (!checkinListenersAttached) {
+    document.getElementById('manual-checkin-btn').addEventListener('click', () => {
+      const val = document.getElementById('manual-token-input').value.trim();
       if (val) processCheckin(val);
-    }
-  });
+    });
+    document.getElementById('manual-token-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = e.target.value.trim();
+        if (val) processCheckin(val);
+      }
+    });
+    checkinListenersAttached = true;
+  }
+}
+
+function stopCheckinScanner() {
+  if (html5QrScanner) {
+    html5QrScanner.clear().catch(() => {});
+    html5QrScanner = null;
+  }
+  checkinListenersAttached = false;
 }
 
 async function processCheckin(token) {
@@ -2169,6 +2175,11 @@ async function processCheckin(token) {
       `;
       const input = document.getElementById('manual-token-input');
       if (input) input.value = '';
+      updateCheckinManifest(data.passenger, data.seat);
+    } else if (res.status === 409) {
+      resultEl.style.background = '#fef9c3';
+      resultEl.style.color = '#854d0e';
+      resultEl.innerHTML = `<strong>⚠ Already Checked In</strong><br>This passenger has already boarded.`;
     } else {
       resultEl.style.background = '#fee2e2';
       resultEl.style.color = '#991b1b';
@@ -2185,11 +2196,16 @@ async function processCheckin(token) {
   }, 5000);
 }
 
-function stopCheckinScanner() {
-  if (html5QrScanner) {
-    html5QrScanner.clear().catch(() => {});
-    html5QrScanner = null;
-  }
+function updateCheckinManifest(passengerName, seat) {
+  if (!passengerName) return;
+  S.manifest = S.manifest.map(p => {
+    const fullName = `${p.first_name} ${p.last_name}`;
+    if (fullName === passengerName && p.checkin_status !== 'checked') {
+      p.checkin_status = 'checked';
+      setTimeout(() => updateCheckinRow(p.id, passengerName, seat), 100);
+    }
+    return p;
+  });
 }
 
 // ─── DRIVER LIVE LOCATION BROADCAST ───────────────────
