@@ -17,10 +17,12 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await page.waitForFunction(() => !document.querySelector('.spinner'), { timeout: 12000 }).catch(() => {});
   }
 
-  async function waitForToast(type = 'success', timeout = 6000) {
-    const toast = page.locator(`.toast.${type}`).first();
-    await toast.waitFor({ state: 'visible', timeout });
-    return toast;
+  async function waitForToast(type = 'success', timeout = 6000, text = null) {
+    const loc = text
+      ? page.locator(`.toast.${type}`, { hasText: text }).first()
+      : page.locator(`.toast.${type}`).first();
+    await loc.waitFor({ state: 'visible', timeout });
+    return loc;
   }
 
   async function clearToast() {
@@ -120,10 +122,10 @@ test.describe.serial('DormToHome E2E Tests', () => {
       console.log(`[DEBUG] /api/routes never fired or errored: ${e.message}`);
     }
 
-    // Routes should load
+    // Routes should load — wait until at least one route card is visible
     await waitForSpinner();
-    await page.waitForTimeout(5000);
-    await expect(page.locator('#screen-passenger .route-card').first()).toBeVisible({ timeout: 30000 });
+    const routeCard = page.locator('#screen-passenger .route-card').first();
+    await expect(routeCard).toBeVisible({ timeout: 30000 });
     const routeCards = await page.locator('#screen-passenger .route-card').count();
     expect(routeCards).toBeGreaterThan(0);
   });
@@ -180,8 +182,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Confirm booking
     await page.locator('button', { hasText: 'Confirm Booking' }).click();
-    const toast = await waitForToast('success');
-    await expect(toast).toContainText('confirmed', { timeout: 3000 });
+    const toast = await waitForToast('success', 6000, 'confirmed');
     await clearToast();
   });
 
