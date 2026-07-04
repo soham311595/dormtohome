@@ -463,7 +463,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await expect(driver.locator('.nav-item', { hasText: 'My Routes' })).toBeVisible({ timeout: 5000 });
     await expect(driver.getByText('Total Passengers')).toBeVisible({ timeout: 5000 });
     await expect(driver.getByText('Upcoming Trips')).toBeVisible({ timeout: 5000 });
-    await expect(driver.getByText('Location Sharing')).toBeVisible({ timeout: 5000 });
+    await expect(driver.locator('.section-title', { hasText: 'Location Sharing' })).toBeVisible({ timeout: 5000 });
 
     // My Routes
     await driver.locator('[data-tab="routes"]').click();
