@@ -440,7 +440,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await signOutBtn.click();
 
     // Confirm dialog is auto-accepted by the handler
-    await expect(page.locator('#screen-login')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#screen-landing')).toBeVisible({ timeout: 5000 });
   });
 
   // ─── TEST 10: DRIVER LOGIN AND DASHBOARD ──────────────

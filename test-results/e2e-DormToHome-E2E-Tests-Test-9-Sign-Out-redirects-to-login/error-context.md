@@ -250,7 +250,7 @@ Call log:
   534 |     const count = await signOutBtns.count();
   535 |     if (count > 0) {
   536 |       await signOutBtns.first().click();
-  537 |       await expect(page.locator('#screen-login')).toBeVisible({ timeout: 5000 });
+  537 |     await expect(page.locator('#screen-landing')).toBeVisible({ timeout: 5000 });
   538 |     }
   539 |   });
   540 | 
