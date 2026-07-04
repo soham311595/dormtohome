@@ -6,7 +6,6 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const { initDatabase, all, get, run } = require('./db/database');
-const { supabase } = require('./db/supabase');
 const { v4: uuidv4 } = require('uuid');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dormtohome-secret-change-in-production';
@@ -20,6 +19,7 @@ const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(cors());
 app.use(express.json());
+// Static files first — before API routes and catch-all
 app.use(express.static(path.join(__dirname, 'public')));
 
 const rateLimit = require('express-rate-limit');
@@ -46,27 +46,24 @@ app.post('/dev/seed-test-users', async (req, res) => {
     return res.status(403).json({ error: 'Forbidden' });
   }
   try {
+    const bcrypt = require('bcryptjs');
+    const hashed = await bcrypt.hash('TestPass123', 10);
     const testUsers = [
-      { email: 'passenger_test@test.com', password: 'TestPass123', first_name: 'Test', last_name: 'Passenger', phone: '5551234567', role: 'passenger' },
-      { email: 'driver_test@test.com',    password: 'TestPass123', first_name: 'Test', last_name: 'Driver',    phone: '5557654321', role: 'driver'    },
+      { email: 'passenger_test@test.com', first_name: 'Test', last_name: 'Passenger', phone: '5551234567', role: 'passenger' },
+      { email: 'driver_test@test.com',    first_name: 'Test', last_name: 'Driver',    phone: '5557654321', role: 'driver'    },
     ];
     const results = [];
     for (const u of testUsers) {
-      const { data: authData, error } = await supabase.auth.admin.createUser({
-        email: u.email, password: u.password,
-        email_confirm: true, // skip email verification for dev testing
-        user_metadata: { first_name: u.first_name, last_name: u.last_name, phone: u.phone, role: u.role }
-      });
-      if (error && !error.message.includes('already been registered')) {
-        console.error('[dev-seed] Error creating', u.email, error.message);
-        results.push({ email: u.email, error: error.message });
+      const existing = await get(`SELECT id FROM users WHERE email = $1`, [u.email]);
+      if (existing) {
+        results.push({ email: u.email, success: true, note: 'already exists' });
         continue;
       }
-      const userId = authData?.user?.id;
-      if (userId) {
-        await run(`INSERT INTO users (id,first_name,last_name,email,phone,"role") VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET first_name=$2, last_name=$3`,
-          [userId, u.first_name, u.last_name, u.email, u.phone, u.role]);
-      }
+      const id = uuidv4();
+      await run(
+        `INSERT INTO users (id,first_name,last_name,email,phone,password,"role") VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [id, u.first_name, u.last_name, u.email, u.phone, hashed, u.role]
+      );
       results.push({ email: u.email, success: true });
     }
     res.json({ message: 'Test users seeded', results });
@@ -91,31 +88,31 @@ io.on('connection', (socket) => {
   socket.on('join_route_room',  (routeId) => socket.join(`route:${routeId}`));
   socket.on('leave_route_room', (routeId) => socket.leave(`route:${routeId}`));
 
-  socket.on('send_message', ({ routeId, content }) => {
+  socket.on('send_message', async ({ routeId, content }) => {
     if (!routeId || !content) return;
     try {
       const id = uuidv4();
-      run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'text')`, [id, routeId, user.id, content]);
-      const msg = get(`SELECT m.*, u.first_name||' '||u.last_name as sender_name, u."role" as sender_role FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=$1`, [id]);
+      await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'text')`, [id, routeId, user.id, content]);
+      const msg = await get(`SELECT m.*, u.first_name||' '||u.last_name as sender_name, u."role" as sender_role FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=$1`, [id]);
       io.to(`route:${routeId}`).emit('new_message', msg);
     } catch (e) { console.error('[socket] send_message:', e.message); }
   });
 
-  socket.on('driver_location_update', ({ latitude, longitude, routeId }) => {
+  socket.on('driver_location_update', async ({ latitude, longitude, routeId }) => {
     if (user.role !== 'driver') return;
     try {
-      run(`INSERT INTO driver_location (driver_id,latitude,longitude,updated_at) VALUES ($1,$2,$3,CURRENT_TIMESTAMP)
+      await run(`INSERT INTO driver_location (driver_id,latitude,longitude,updated_at) VALUES ($1,$2,$3,CURRENT_TIMESTAMP)
           ON CONFLICT (driver_id) DO UPDATE SET latitude=$2, longitude=$3, updated_at=CURRENT_TIMESTAMP`, [user.id, latitude, longitude]);
       if (routeId) io.to(`route:${routeId}`).emit('bus_location', { driverId: user.id, latitude, longitude });
     } catch (e) { console.error('[socket] location:', e.message); }
   });
 
-  socket.on('checkin_passenger', ({ bookingId, routeId }) => {
+  socket.on('checkin_passenger', async ({ bookingId, routeId }) => {
     if (user.role !== 'driver') return;
     try {
-      run('UPDATE bookings SET checkin_status=$1 WHERE id=$2', ['checked', bookingId]);
-      const booking = get(`SELECT b.*, u.first_name, u.last_name, u.id as uid FROM bookings b JOIN users u ON b.passenger_id=u.id WHERE b.id=?`, [bookingId]);
-      run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), booking.uid, 'Checked In', 'You have been checked in. Have a great ride!', 'success']);
+      const booking = await get(`SELECT b.*, u.first_name, u.last_name, u.id as uid FROM bookings b JOIN users u ON b.passenger_id=u.id WHERE b.id=$1`, [bookingId]);
+      if (!booking) return;
+      await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), booking.uid, 'Checked In', 'You have been checked in. Have a great ride!', 'success']);
       io.to(`route:${routeId}`).emit('passenger_checked_in', { bookingId, passengerName: `${booking.first_name} ${booking.last_name}`, seat: booking.seat_number });
       for (const [sid, info] of connectedUsers.entries()) {
         if (info.userId === booking.uid) io.to(sid).emit('new_notification', { title: 'Checked In', body: 'You have been checked in!' });
@@ -123,36 +120,36 @@ io.on('connection', (socket) => {
     } catch (e) { console.error('[socket] checkin:', e.message); }
   });
 
-  socket.on('driver_broadcast', ({ routeId, message }) => {
+  socket.on('driver_broadcast', async ({ routeId, message }) => {
     if (user.role !== 'driver') return;
     try {
-      const passengers = all(`SELECT DISTINCT b.passenger_id FROM bookings b WHERE b.route_id=?`, [routeId]);
+      const passengers = await all(`SELECT DISTINCT b.passenger_id FROM bookings b WHERE b.route_id=$1`, [routeId]);
       for (const p of passengers) {
-        run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), p.passenger_id, 'Driver Update', message, 'alert']);
+        await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), p.passenger_id, 'Driver Update', message, 'alert']);
         for (const [sid, info] of connectedUsers.entries()) {
           if (info.userId === p.passenger_id) io.to(sid).emit('new_notification', { title: 'Driver Update', body: message });
         }
       }
       const id = uuidv4();
-      run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'notification')`, [id, routeId, user.id, `📢 ${message}`]);
-      const msg = get(`SELECT m.*, u.first_name||' '||u.last_name as sender_name, u."role" as sender_role FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=$1`, [id]);
+      await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'notification')`, [id, routeId, user.id, `📢 ${message}`]);
+      const msg = await get(`SELECT m.*, u.first_name||' '||u.last_name as sender_name, u."role" as sender_role FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=$1`, [id]);
       io.to(`route:${routeId}`).emit('new_message', msg);
     } catch (e) { console.error('[socket] broadcast:', e.message); }
   });
 
-  socket.on('stop_completed', ({ routeId, stopId }) => {
+  socket.on('stop_completed', async ({ routeId, stopId }) => {
     if (user.role !== 'driver') return;
     try {
-      run('UPDATE route_stops SET status=$1 WHERE id=$2', ['done', stopId]);
-      const stops = all('SELECT * FROM route_stops WHERE route_id=$1 ORDER BY order_index', [routeId]);
+      await run('UPDATE route_stops SET status=$1 WHERE id=$2', ['done', stopId]);
+      const stops = await all('SELECT * FROM route_stops WHERE route_id=$1 ORDER BY order_index', [routeId]);
       const doneIdx = stops.findIndex(s => s.id === stopId);
-      if (doneIdx >= 0 && stops[doneIdx + 1]) run('UPDATE route_stops SET status=$1 WHERE id=$2', ['active', stops[doneIdx + 1].id]);
-      io.to(`route:${routeId}`).emit('route_progress', { stops: all('SELECT * FROM route_stops WHERE route_id=$1 ORDER BY order_index', [routeId]) });
+      if (doneIdx >= 0 && stops[doneIdx + 1]) await run('UPDATE route_stops SET status=$1 WHERE id=$2', ['active', stops[doneIdx + 1].id]);
+      io.to(`route:${routeId}`).emit('route_progress', { stops: await all('SELECT * FROM route_stops WHERE route_id=$1 ORDER BY order_index', [routeId]) });
       const stop = stops.find(s => s.id === stopId);
       if (stop?.type === 'checkpoint') {
-        const passengers = all(`SELECT DISTINCT b.passenger_id FROM bookings b WHERE b.route_id=$1`, [routeId]);
+        const passengers = await all(`SELECT DISTINCT b.passenger_id FROM bookings b WHERE b.route_id=$1`, [routeId]);
         for (const p of passengers) {
-          run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), p.passenger_id, `Checkpoint: ${stop.city}`, `Your bus has passed through ${stop.city}.`, 'info']);
+          await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), p.passenger_id, `Checkpoint: ${stop.city}`, `Your bus has passed through ${stop.city}.`, 'info']);
           for (const [sid, info] of connectedUsers.entries()) {
             if (info.userId === p.passenger_id) io.to(sid).emit('new_notification', { title: 'Checkpoint', body: `Bus passed through ${stop.city}` });
           }
@@ -210,6 +207,7 @@ async function start() {
     await initDatabase();
   } catch (err) {
     console.warn('⚠️  Database unavailable, running in demo mode');
+    console.warn('   Reason:', err.message);
   }
   server.listen(PORT, () => {
     console.log(`\n🚌  DormToHome running on http://localhost:${PORT}`);

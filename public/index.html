@@ -8,9 +8,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap">
 
-<!-- QR Code generation (passenger ticket) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
 <!-- QR Code scanning (driver check-in) -->
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
@@ -24,7 +21,7 @@ html{font-size:16px}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI'
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .screen{display:none;min-height:100vh;flex-direction:column}
 .screen.active{display:flex}
-#screen-landing{display:flex}
+#screen-landing.active{display:flex}
 /* LANDING */
 #screen-landing{background:linear-gradient(145deg,var(--navy-dark) 0%,var(--navy) 50%,#1A2E50 100%);position:relative;overflow:hidden}
 .landing-nav{display:flex;align-items:center;justify-content:space-between;padding:24px 48px;position:relative;z-index:10}
@@ -320,12 +317,9 @@ html{font-size:15px}
 .btn-full{width:100%}
 .auth-card{max-width:100%}
 }
+</style>
 </head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DormToHome</title>
-<script>document.documentElement.style.setProperty('--navy-dark','#060F20');document.documentElement.style.background='#060F20';</script>
 <body>
-<script>document.getElementById('screen-landing').style.display='flex';document.body.style.background='#060F20';</script>
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- LANDING -->
@@ -507,8 +501,8 @@ html{font-size:15px}
 <div class="modal-overlay" id="modal-send-notif"><div class="modal"><div class="modal-header"><div class="modal-title">Send Notification</div><button class="modal-close" onclick="closeModal('modal-send-notif')">✕</button></div><div class="modal-body" id="send-notif-body"></div></div></div>
 <div class="modal-overlay" id="modal-req-ok"><div class="modal" style="max-width:380px;text-align:center"><div class="modal-body" style="padding:36px 32px"><div style="width:60px;height:60px;background:rgba(46,125,82,.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg viewBox="0 0 24 24" fill="none" stroke="#2E7D52" stroke-width="2" width="28" height="28"><polyline points="20 6 9 17 4 12"/></svg></div><div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy);margin-bottom:8px">Successfully Requested!</div><div style="font-size:.88rem;color:var(--gray-600);line-height:1.6">You will be notified if this route is confirmed.</div><button class="btn btn-gold mt-20" style="margin-top:20px" onclick="closeModal('modal-req-ok')">Done</button></div></div></div>
 
-<script src="/app.js"></script>
-<script>document.getElementById('screen-landing').style.display='flex';</script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
 </body>
 </html>

@@ -39,6 +39,7 @@ const S = {
   requests: [],
   manifest: [],
   locationInterval: null,
+  busAnimInterval: null,
 };
 
 // ─── GLOBAL CLICK DISPATCHER ───────────────────────────────
@@ -75,6 +76,16 @@ const CITIES = [
   {n:'Corpus Christi',s:'TX',z:'78401'},{n:'San Marcos',s:'TX',z:'78666'},
   {n:'Denton',s:'TX',z:'76201'},{n:'Pearland',s:'TX',z:'77581'},
   {n:'Pflugerville',s:'TX',z:'78660'},{n:'Georgetown',s:'TX',z:'78626'},
+  {n:'Allen',s:'TX',z:'75002'},{n:'Arlington',s:'TX',z:'76010'},
+  {n:'Bedford',s:'TX',z:'76021'},{n:'Carrollton',s:'TX',z:'75006'},
+  {n:'Cedar Hill',s:'TX',z:'75104'},{n:'Coppell',s:'TX',z:'75019'},
+  {n:'Euless',s:'TX',z:'76039'},{n:'Flower Mound',s:'TX',z:'75028'},
+  {n:'Frisco',s:'TX',z:'75034'},{n:'Garland',s:'TX',z:'75040'},
+  {n:'Grand Prairie',s:'TX',z:'75050'},{n:'Grapevine',s:'TX',z:'76051'},
+  {n:'Irving',s:'TX',z:'75038'},{n:'Lewisville',s:'TX',z:'75067'},
+  {n:'McKinney',s:'TX',z:'75069'},{n:'Mesquite',s:'TX',z:'75149'},
+  {n:'Richardson',s:'TX',z:'75080'},{n:'Rockwall',s:'TX',z:'75087'},
+  {n:'Rowlett',s:'TX',z:'75088'},
 ];
 
 // ─── API ───────────────────────────────────────────────────
@@ -192,7 +203,7 @@ async function doRegister() {
       checkpoint_notifs: document.getElementById('chk-cp')?.classList.contains('checked'),
     };
     const data = await api('POST', '/auth/register', body, false);
-    toast(data.message || 'Registration successful! Please check your email to verify your account.', 'success');
+    toast(data.message || 'Registration successful! You can now sign in.', 'success');
     showScreen('screen-login');
   } catch (e) { toast(e.message, 'error'); }
   btn.innerHTML = 'Create Account'; btn.disabled = false;
@@ -203,8 +214,9 @@ function logout() {
   localStorage.removeItem('dth_token');
   S.token = null; S.user = null;
   if (S.socket) S.socket.disconnect();
-  if (S.locationInterval) clearInterval(S.locationInterval);
-  showScreen('screen-login');
+  if (S.locationInterval) { clearInterval(S.locationInterval); S.locationInterval = null; }
+  if (S.busAnimInterval) { clearInterval(S.busAnimInterval); S.busAnimInterval = null; }
+  showScreen('screen-landing');
   toast('Signed out');
 }
 
@@ -214,6 +226,11 @@ function setAvatarInitials(id, user) {
 }
 
 // ─── SCREEN ROUTING ───────────────────────────────────────
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -222,6 +239,7 @@ function showScreen(id) {
 // ─── PASSENGER TABS ───────────────────────────────────────
 function pTab(tab) {
   S.pTab = tab;
+  if (S.busAnimInterval) { clearInterval(S.busAnimInterval); S.busAnimInterval = null; }
   document.querySelectorAll('#screen-passenger .nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === tab);
   });
@@ -237,6 +255,8 @@ function pTab(tab) {
 // ─── DRIVER TABS ───────────────────────────────────────────
 function dTab(tab) {
   S.dTab = tab;
+  if (S.busAnimInterval) { clearInterval(S.busAnimInterval); S.busAnimInterval = null; }
+  if (S.activeRouteId) { S.activeRouteId = null; }
   document.querySelectorAll('#screen-driver .nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.tab === tab);
   });
@@ -269,7 +289,7 @@ async function renderPassengerRoutes() {
     const query = params.toString();
     const routes = await api('GET', `/routes${query ? '?' + query : ''}`, null, false);
     S.allRoutes = routes;
-    const reqs = await api('GET', '/requests', null, false);
+    const reqs = await api('GET', '/requests');
     S.requests = reqs;
     document.getElementById('p-content').innerHTML = buildRoutesPage(routes, reqs);
   } catch (e) { toast(e.message, 'error'); }
@@ -294,7 +314,7 @@ function buildRoutesPage(routes, reqs) {
       <div class="filter-chip" onclick="openFilterPanel('seats')">${ICON.seat()} Min Seats</div>
       <input style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:6px 12px;font-size:.8rem;color:var(--navy-dark);outline:none;width:200px" placeholder="Search route # (DTH-201)" oninput="filterRouteNum(this.value)">
     </div>
-    <div class="routes-grid" id="routes-list">${routes.map(buildRouteCard).join('') || emptyState('No routes found')}</div>
+    <div class="routes-grid" id="routes-list">${routes.map(r => { try { return buildRouteCard(r); } catch (e) { console.error('buildRouteCard error:', e, r); return ''; } }).join('') || emptyState('No routes found')}</div>
   </div>
   <div class="tab-pane" id="tab-requested">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
@@ -338,7 +358,7 @@ function buildRouteCard(r) {
         <span class="route-num">${String(r.route_number)}</span>
       </div>
       <div class="route-meta">
-        <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${String(r.departure_date)}</span>
+        <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${fmtDate(r.departure_date)}</span>
         <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>${String(r.departure_time)} – ${String(r.arrival_time)}</span>
         <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>${String(r.duration)}</span>
         <span class="route-meta-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 20v-2a7 7 0 0114 0v2"/></svg>${String(r.available_seats)} seats left</span>
@@ -372,7 +392,9 @@ function buildReqCard(r) {
     </div>
     ${S.user && r.requester_id === S.user.id
       ? `<button class="btn btn-sm" style="background:var(--gray-200);color:var(--gray-500);cursor:default" disabled>Your Request</button>`
-      : `<button class="btn btn-outline-gold btn-sm" id="rbtn-${r.id}" data-rid="${r.id}" data-action="support-req">Support Route</button>`}
+      : r.supported_by_me
+        ? `<button class="btn btn-success btn-sm" disabled>✓ Supported</button>`
+        : `<button class="btn btn-outline-gold btn-sm" id="rbtn-${r.id}" data-rid="${r.id}" data-action="support-req">Support Route</button>`}
   </div>`;
 }
 
@@ -518,11 +540,11 @@ async function applyFilterPanel() {
     }
 
     const list = document.getElementById('routes-list');
-    if (list) list.innerHTML = routes.map(buildRouteCard).join('') || emptyState('No routes match your filter');
+    if (list) list.innerHTML = (routes.map(r => { try { return buildRouteCard(r); } catch (e) { console.error('buildRouteCard error:', e, r); return ''; } }).join('') || emptyState('No routes match your filter'));
     toast('Filter applied', 'success');
 
     updateClearFilterBtn();
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { console.error('applyFilterPanel error:', e); toast(e.message || 'Filter error', 'error'); }
 }
 
 function updateClearFilterBtn() {
@@ -552,9 +574,9 @@ async function clearAllFilters() {
   try {
     const routes = await api('GET', '/routes', null, false);
     const list = document.getElementById('routes-list');
-    if (list) list.innerHTML = routes.map(buildRouteCard).join('') || emptyState('No routes found');
+    if (list) list.innerHTML = (routes.map(r => { try { return buildRouteCard(r); } catch (e) { console.error('buildRouteCard error:', e, r); return ''; } }).join('') || emptyState('No routes found'));
     toast('Filters cleared', 'success');
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { console.error('clearFilters error:', e); toast(e.message || 'Clear error', 'error'); }
 }
 
 function applyRequestFilters() {
@@ -632,12 +654,12 @@ async function openRouteDetail(id) {
         <div style="background:var(--gray-100);border-radius:10px;padding:14px">
           <div class="text-xs text-muted mb-4">DEPARTURE</div>
           <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${String(r.from_city)}</div>
-          <div class="text-sm text-muted">${String(r.departure_date)} · ${String(r.departure_time)}</div>
+          <div class="text-sm text-muted">${fmtDate(r.departure_date)} · ${String(r.departure_time)}</div>
         </div>
         <div style="background:var(--gray-100);border-radius:10px;padding:14px">
           <div class="text-xs text-muted mb-4">ARRIVAL</div>
           <div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${String(r.to_city)}</div>
-          <div class="text-sm text-muted">${String(r.departure_date)} · ${String(r.arrival_time)}</div>
+          <div class="text-sm text-muted">${fmtDate(r.departure_date)} · ${String(r.arrival_time)}</div>
         </div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
@@ -676,7 +698,7 @@ async function startBooking(routeId) {
 }
 
 function buildSeatModal(route, taken) {
-  let html = `<div style="margin-bottom:16px"><div class="text-sm text-muted">${route.from_city} → ${route.to_city} · ${route.departure_date} · <strong style="color:var(--gold)">$${route.price_per_seat}</strong></div></div>`;
+  let html = `<div style="margin-bottom:16px"><div class="text-sm text-muted">${route.from_city} → ${route.to_city} · ${fmtDate(route.departure_date)} · <strong style="color:var(--gold)">$${route.price_per_seat}</strong></div></div>`;
   html += '<div class="seat-map">';
   const ROWS = ['3','4','5','6','7','8','9','10','11'];
   ROWS.forEach(row => {
@@ -697,7 +719,7 @@ function buildSeatModal(route, taken) {
   html += '</div>';
   html += `<div style="display:flex;gap:14px;margin:12px 0;flex-wrap:wrap">
     <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:white;border:2px solid var(--gray-300)"></div>Available</div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:.75px;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gold)"></div>Selected</div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gold)"></div>Selected</div>
     <div style="display:flex;align-items:center;gap:6px;font-size:.75rem;color:var(--gray-600)"><div style="width:14px;height:14px;border-radius:4px;background:var(--gray-200)"></div>Taken</div>
   </div>`;
   html += `<div style="background:var(--gray-100);border-radius:8px;padding:10px 14px;font-size:.82rem;color:var(--gray-600);margin-bottom:14px" id="seat-selected-info">No seat selected yet.</div>`;
@@ -731,16 +753,20 @@ async function renderActiveTrips() {
   try {
     const bookings = await api('GET', '/bookings/mine');
     S.myBookings = bookings;
-    const active = bookings.filter(b => b.status !== 'cancelled');
-    document.getElementById('p-content').innerHTML = buildActiveTripsPage(active);
-    if (active.length) {
+    document.getElementById('p-content').innerHTML = buildActiveTripsPage(bookings);
+    if (bookings.length) {
       animateBus();
       // Join route room for live updates
-      const firstActive = active[0];
+      const firstActive = bookings[0];
       if (S.socket) {
         S.socket.emit('join_route_room', firstActive.route_id);
         S.chatRoute = firstActive.route_id;
       }
+      // Fetch stops for live progress
+      try {
+        const route = await api('GET', `/routes/${firstActive.route_id}`, null, false);
+        if (route.stops) renderStopsLive(route.stops);
+      } catch (e) { /* stops not available */ }
     }
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -752,7 +778,7 @@ function buildActiveTripsPage(bookings) {
   <div class="page-header"><div><div class="page-title">Active Trips</div><div class="page-sub">Live tracking and trip status</div></div></div>
   <div class="card mb-16" style="margin-bottom:16px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div><div class="section-title" style="margin-bottom:0">${b.route_number} — Live</div><div class="text-sm text-muted">${b.from_city} → ${b.to_city} · ${b.departure_date}</div></div>
+      <div><div class="section-title" style="margin-bottom:0">${b.route_number} — Live</div><div class="text-sm text-muted">${b.from_city} → ${b.to_city} · ${fmtDate(b.departure_date)}</div></div>
       <span class="badge badge-green">● Active</span>
     </div>
     <div class="map-container" id="live-map">
@@ -777,6 +803,10 @@ function buildActiveTripsPage(bookings) {
         <span class="badge badge-green" id="trip-status-badge">On Schedule</span>
       </div>
     </div>
+    <div class="card mb-16" style="margin-bottom:16px" id="stops-live-container">
+      <div class="section-title">Route Progress</div>
+      <div class="stops-list" id="stops-live-list"></div>
+    </div>
     <div style="display:flex;align-items:center;gap:14px;background:rgba(46,125,82,.08);border:1px solid rgba(46,125,82,.2);border-radius:10px;padding:14px;margin-top:14px">
       <div style="width:42px;height:42px;border-radius:10px;background:var(--success);display:flex;align-items:center;justify-content:center">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>
@@ -787,15 +817,16 @@ function buildActiveTripsPage(bookings) {
   <div class="card">
     <div class="section-title">Your Upcoming Trips</div>
     ${bookings.map(bk => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
-      <div><div style="font-weight:500;color:var(--navy);font-size:.9rem">${bk.from_city} → ${bk.to_city}</div><div class="text-xs text-muted">${bk.departure_date} · Seat ${bk.seat_number}</div></div>
+      <div><div style="font-weight:500;color:var(--navy);font-size:.9rem">${bk.from_city} → ${bk.to_city}</div><div class="text-xs text-muted">${fmtDate(bk.departure_date)} · Seat ${bk.seat_number}</div></div>
       <span class="badge ${bk.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${bk.checkin_status}</span>
     </div>`).join('')}
   </div>`;
 }
 
 function animateBus() {
+  if (S.busAnimInterval) clearInterval(S.busAnimInterval);
   let pos = 35, dir = 1;
-  setInterval(() => {
+  S.busAnimInterval = setInterval(() => {
     const bus = document.getElementById('bus-marker');
     if (!bus) return;
     pos += dir * 0.15;
@@ -817,9 +848,9 @@ async function renderTickets() {
     S.allBookings = bookings;
     document.getElementById('p-content').innerHTML = buildTicketsPage(bookings, 'active');
     bookings.forEach(b => {
-      const canvas = document.getElementById(`qr-mini-${b.id}`);
-      if (canvas && typeof QRCode !== 'undefined') {
-        QRCode.toCanvas(canvas, `dormtohome:ticket:${b.id}`, { width: 60, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
+      const el = document.getElementById(`qr-mini-${b.id}`);
+      if (el && typeof QRCode !== 'undefined') {
+        new QRCode(el, { text:`dormtohome:ticket:${b.id}`, width:60, height:60, colorDark:'#0B1D3A', colorLight:'#FFFFFF', correctLevel:QRCode.CorrectLevel.H });
       }
     });
   } catch (e) { toast(e.message, 'error'); }
@@ -850,18 +881,18 @@ function buildTicketsPage(bookings, activeTab) {
 }
 
 function buildTicketCard(b) {
-  return `<div style="background:var(--white);border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:1fr 90px;cursor:pointer;transition:var(--transition)" onclick="openTicket('${b.id}','${b.route_number}','${b.from_city}','${b.to_city}','${b.departure_date}','${b.departure_time}','${b.seat_number}','${b.driver_name}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+  return `<div style="background:var(--white);border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:1fr 90px;cursor:pointer;transition:var(--transition)" onclick="openTicket('${b.id}','${b.route_number}','${b.from_city}','${b.to_city}','${fmtDate(b.departure_date)}','${b.departure_time}','${b.seat_number}','${b.driver_name}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--gray-200)'">
     <div style="padding:18px 22px">
       <div style="display:flex;justify-content:space-between;margin-bottom:12px">
         <span class="route-num">${b.route_number}</span>
-        <span class="badge ${b.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${b.checkin_status === 'checked' ? '✓ Checked In' : 'Pending'}</span>
+        <span class="badge ${b.checkin_status === 'checked' ? 'badge-green' : 'badge-gold'}">${b.checkin_status === 'checked' ? '✓ Checked In' : 'Confirmed'}</span>
       </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <div><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.from_city}</div><div class="text-xs text-muted">${b.departure_time}</div></div>
         <div style="color:var(--gold);font-size:1.2rem;flex:1;text-align:center">→</div>
         <div style="text-align:right"><div style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--navy)">${b.to_city}</div><div class="text-xs text-muted">${b.arrival_time}</div></div>
       </div>
-      <div style="display:flex;gap:14px;font-size:.78rem;color:var(--gray-400)"><span style="display:inline-flex;align-items:center;gap:4px">${ICON.calendar()} ${b.departure_date}</span><span style="display:inline-flex;align-items:center;gap:4px">${ICON.seat()} Seat ${b.seat_number}</span><span style="display:inline-flex;align-items:center;gap:4px">${ICON.driver()} ${b.driver_name}</span></div>
+      <div style="display:flex;gap:14px;font-size:.78rem;color:var(--gray-400)"><span style="display:inline-flex;align-items:center;gap:4px">${ICON.calendar()} ${fmtDate(b.departure_date)}</span><span style="display:inline-flex;align-items:center;gap:4px">${ICON.seat()} Seat ${b.seat_number}</span><span style="display:inline-flex;align-items:center;gap:4px">${ICON.driver()} ${b.driver_name}</span></div>
     </div>
     <div style="background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;gap:8px">
       <div style="font-size:.6rem;color:rgba(255,255,255,.5);letter-spacing:.08em">SCAN</div>
@@ -881,15 +912,15 @@ function showTicketTab(tab) {
     return (tab === 'active') ? d >= today : d < today;
   });
   showing.forEach(b => {
-    const canvas = document.getElementById(`qr-mini-${b.id}`);
-    if (canvas && typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, `dormtohome:ticket:${b.id}`, { width: 60, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
+    const el = document.getElementById(`qr-mini-${b.id}`);
+    if (el && typeof QRCode !== 'undefined') {
+      new QRCode(el, { text:`dormtohome:ticket:${b.id}`, width:60, height:60, colorDark:'#0B1D3A', colorLight:'#FFFFFF', correctLevel:QRCode.CorrectLevel.H });
     }
   });
 }
 
 function miniQR(bookingId) {
-  return `<canvas id="qr-mini-${bookingId || 'x'}" width="60" height="60" style="border-radius:5px"></canvas>`;
+  return `<div id="qr-mini-${bookingId || 'x'}" style="width:60px;height:60px;border-radius:5px;overflow:hidden"></div>`;
 }
 
 function openTicket(id, num, from, to, date, time, seat, driver) {
@@ -898,11 +929,6 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
       <div style="font-size:.72rem;color:var(--gray-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">Route ${num}</div>
       <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy)">${from} → ${to}</div>
       <div class="text-sm text-muted">${date} · ${time}</div>
-    </div>
-    <div id="qr-ticket-container" style="background:var(--navy);border-radius:16px;padding:24px;display:flex;align-items:center;justify-content:center;margin-bottom:20px">
-      <div style="background:white;padding:16px;border-radius:12px;display:flex;align-items:center;justify-content:center">
-        <canvas id="qr-ticket-large" width="144" height="144"></canvas>
-      </div>
     </div>
     <div style="text-align:center;font-size:.78rem;color:var(--gray-400);margin-bottom:16px">Show this to your driver at boarding</div>
     <div style="flex-direction:row;font-size:.85rem;color:var(--gray-400);text-align:center"></div>
@@ -915,13 +941,7 @@ function openTicket(id, num, from, to, date, time, seat, driver) {
     </div>
     <div id="ticket-qr-canvas"></div>`;
   openModal('modal-ticket');
-  setTimeout(() => {
-    const canvas = document.getElementById('qr-ticket-large');
-    if (canvas && typeof QRCode !== 'undefined') {
-      QRCode.toCanvas(canvas, `dormtohome:ticket:${id}`, { width: 144, margin: 1, color: { dark: '#0B1D3A', light: '#FFFFFF' } });
-    }
-    renderTicketQR(id);
-  }, 100);
+  setTimeout(() => renderTicketQR(id), 100);
 }
 
 // ─── MESSAGES ────────────────────────────────────────────
@@ -1015,8 +1035,8 @@ async function sendMsg() {
     try {
       const msg = await api('POST', `/messages/${S.chatRoute}`, { content: text });
       appendChatMsg(msg);
-    } catch (e) { toast(e.message, 'error'); }
-  }
+  } catch (e) { console.error('renderPassengerRoutes error:', e); toast(e.message || 'Failed to load routes', 'error'); }
+}
 }
 
 async function switchChatRoom(routeId, num, from, to, el) {
@@ -1255,7 +1275,7 @@ function buildDriverDashboard(a) {
         <button class="btn btn-outline-gold btn-sm" onclick="dTab('routes')">View All</button>
       </div>
       ${a.upcoming_routes.length ? a.upcoming_routes.map(r => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100)">
-        <div><div style="font-weight:600;font-size:.9rem;color:var(--navy)">${String(r.from_city)} → ${String(r.to_city)}</div><div class="text-xs text-muted">${String(r.departure_date)} · ${String(r.departure_time)} · <span class="route-num">${String(r.route_number)}</span></div></div>
+        <div><div style="font-weight:600;font-size:.9rem;color:var(--navy)">${String(r.from_city)} → ${String(r.to_city)}</div><div class="text-xs text-muted">${fmtDate(r.departure_date)} · ${String(r.departure_time)} · <span class="route-num">${String(r.route_number)}</span></div></div>
         <button class="btn btn-outline-gold btn-sm" onclick="dTab('checkin')">Check-In</button>
       </div>`).join('') : '<div class="text-sm text-muted">No upcoming routes</div>'}
     </div>
@@ -1301,7 +1321,7 @@ function buildDriverRoutesPage(routes) {
           <span class="route-num">${String(r.route_number)}</span>
         </div>
         <div class="route-meta">
-          <span class="route-meta-item">${ICON.calendar()} ${String(r.departure_date)}</span>
+          <span class="route-meta-item">${ICON.calendar()} ${fmtDate(r.departure_date)}</span>
           <span class="route-meta-item">${ICON.clock()} ${String(r.departure_time)}</span>
           <span class="route-meta-item">${ICON.people()} ${String(r.booked_seats)}/${String(r.total_seats)} booked</span>
         </div>
@@ -1393,7 +1413,7 @@ function buildCreateStep() {
     <div class="section-title">Review & Post</div>
     <div style="background:var(--gray-100);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:14px">Route Preview</div>
-      ${[['From',d.from_city],['To',d.to_city],['Date',d.departure_date],['Departure',d.departure_time],['Arrival',d.arrival_time],['Duration',d.duration],['Seats',`${d.total_seats} @ $${d.price_per_seat}/seat`]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-200);font-size:.875rem"><span style="color:var(--gray-600)">${k}</span><strong style="color:var(--navy)">${v || '—'}</strong></div>`).join('')}
+      ${[['From',d.from_city],['To',d.to_city],['Date',fmtDate(d.departure_date)],['Departure',d.departure_time],['Arrival',d.arrival_time],['Duration',d.duration],['Seats',`${d.total_seats} @ $${d.price_per_seat}/seat`]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-200);font-size:.875rem"><span style="color:var(--gray-600)">${k}</span><strong style="color:var(--navy)">${v || '—'}</strong></div>`).join('')}
     </div>
     <div style="display:flex;gap:10px">
       <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="createBack()">← Edit</button>
@@ -1501,9 +1521,10 @@ function buildCheckinPage(route, manifest) {
   const checked = manifest.filter(p => p.checkin_status === 'checked').length;
   return `
   <div class="page-header">
-    <div><div class="page-title">Check-In — ${route.route_number}</div><div class="page-sub">${route.from_city} → ${route.to_city} · ${route.departure_date}</div></div>
+    <div><div class="page-title">Check-In — ${route.route_number}</div><div class="page-sub">${route.from_city} → ${route.to_city} · ${fmtDate(route.departure_date)}</div></div>
     <span class="badge badge-green" id="ci-counter">${checked}/${manifest.length} Checked In</span>
   </div>
+  <div id="checkin-scanner-section"></div>
   <div style="background:var(--white);border:2px dashed var(--gold);border-radius:14px;padding:22px;text-align:center;cursor:pointer;margin-bottom:20px;transition:var(--transition)" onclick="simulateScan()" onmouseover="this.style.background='rgba(201,150,42,.04)'" onmouseout="this.style.background='var(--white)'">
     <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" width="36" height="36" style="margin:0 auto 10px;display:block"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/><rect x="20" y="14" width="2" height="2"/><rect x="14" y="20" width="2" height="2"/></svg>
     <div style="font-weight:600;color:var(--navy)">Scan Passenger QR Code</div>
@@ -1540,7 +1561,7 @@ async function checkinPassenger(bookingId) {
     if (S.socket && S.chatRoute) {
       S.socket.emit('checkin_passenger', { bookingId, routeId: S.chatRoute });
     }
-  } catch (e) { toast(e.message, 'error'); }
+  } catch (e) { toast(e.message, 'error'); throw e; }
 }
 
 function updateCheckinRow(bookingId, name, seat) {
@@ -1559,16 +1580,35 @@ function updateCheckinRow(bookingId, name, seat) {
   if (progress) progress.style.width = `${Math.round(checked / total * 100)}%`;
 }
 
-function simulateScan() {
+async function simulateScan() {
   const pending = S.manifest.find(p => p.checkin_status === 'pending');
   if (!pending) { toast('All passengers checked in!', 'success'); return; }
-  checkinPassenger(pending.id);
-  pending.checkin_status = 'checked';
-  toast(`Scanned: ${pending.first_name} ${pending.last_name}`, 'success');
+  try {
+    await checkinPassenger(pending.id);
+    pending.checkin_status = 'checked';
+    toast(`Scanned: ${pending.first_name} ${pending.last_name}`, 'success');
+  } catch (e) { /* error already toasted */ }
 }
 
 function renderStopsLive(stops) {
-  // Update stop statuses if we're on active trips page
+  const listEl = document.getElementById('stops-live-list');
+  if (!listEl) return;
+  const activeStop = stops.find(s => s.status === 'active') || stops.find(s => s.status === 'upcoming');
+  listEl.innerHTML = stops.map(s => {
+    const isActive = s.status === 'active';
+    const isDone = s.status === 'done';
+    const dotClass = isDone ? 'stop-dot done' : isActive ? 'stop-dot active' : 'stop-dot';
+    const dotContent = isDone ? '✓' : isActive ? '●' : '';
+    return `<div class="stop-item">
+      <div class="${dotClass}">${dotContent}</div>
+      <div style="flex:1"><div style="font-weight:${isActive||isDone?'600':'400'};font-size:.9rem;color:var(--navy)">${s.city}</div><div class="text-xs text-muted">${s.type === 'checkpoint' ? 'Checkpoint' : 'Stop'}${s.scheduled_time ? ' · '+s.scheduled_time : ''}</div></div>
+    </div>`;
+  }).join('');
+  const badge = document.getElementById('trip-status-badge');
+  if (badge && activeStop) {
+    badge.textContent = activeStop.type === 'checkpoint' ? 'Passing checkpoint' : 'At stop: ' + activeStop.city;
+    badge.className = 'badge badge-gold';
+  }
 }
 
 // ─── DRIVER LIVE TAB ──────────────────────────────────────
@@ -1734,7 +1774,7 @@ async function sendDriverNotif() {
 
 // ─── LOCATION SHARING ────────────────────────────────────
 function startDriverLocationSharing() {
-  if (S.locationInterval) clearInterval(S.locationInterval);
+  if (S.locationInterval) { clearInterval(S.locationInterval); S.locationInterval = null; }
   if (!navigator.geolocation) return;
   S.locationInterval = setInterval(() => {
     navigator.geolocation.getCurrentPosition(pos => {
@@ -1841,7 +1881,15 @@ function reqNext() {
   S.reqStep = Math.min(5, S.reqStep + 1);
   showRequestStep();
 }
-function reqBack() { S.reqStep = Math.max(1, S.reqStep - 1); showRequestStep(); }
+function reqBack() {
+  if (S.reqStep === 2) S.reqData.to_city = document.getElementById('req-to')?.value;
+  if (S.reqStep === 3) S.reqData.requested_date = document.getElementById('req-date')?.value;
+  if (S.reqStep === 4) {
+    S.reqData.requested_time = document.getElementById('req-dep')?.value;
+    S.reqData.arrival_time = document.getElementById('req-arr')?.value;
+  }
+  S.reqStep = Math.max(1, S.reqStep - 1); showRequestStep();
+}
 
 function cancelRequest() {
   if (confirm('Are you sure you want to cancel? Your progress will be lost.')) {
@@ -1873,12 +1921,9 @@ async function postRequest() {
   btn.innerHTML = '<span class="spinner"></span>'; btn.disabled = true;
   try {
     await api('POST', '/requests', S.reqData);
-    pTab('routes');
     toast('Route request posted!', 'success');
-    setTimeout(() => {
-      const tab = document.querySelector('.tab:not(.active)');
-      if (tab) tab.click();
-    }, 300);
+    openModal('modal-req-ok');
+    pTab('routes');
   } catch (e) { toast(e.message, 'error'); btn.innerHTML = 'Post Request'; btn.disabled = false; }
 }
 
@@ -1938,12 +1983,14 @@ function selectCity(inputId, ddId, val) {
   if (dd) dd.classList.remove('open');
 }
 
+function stripState(v) { return v.replace(/, ?[A-Za-z]{2}$/, '').trim(); }
+
 function landingSearch() {
   const from = document.getElementById('land-from').value;
   const to = document.getElementById('land-to').value;
   const date = document.getElementById('land-date').value;
-  sessionStorage.setItem('landFrom', from);
-  sessionStorage.setItem('landTo', to);
+  sessionStorage.setItem('landFrom', stripState(from));
+  sessionStorage.setItem('landTo', stripState(to));
   sessionStorage.setItem('landDate', date);
   if (!S.token) { showScreen('screen-login'); toast('Sign in to book rides', 'info'); return; }
   pTab('routes');
@@ -1995,14 +2042,13 @@ async function renderTicketQR(bookingId) {
     qrContainer.appendChild(qrDiv);
 
     if (typeof QRCode !== 'undefined' && data.ticket_token) {
-      new QRCode(qrDiv, {
-        text: data.ticket_token,
-        width: 200,
-        height: 200,
-        colorDark: '#1a1a2e',
-        colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
-      });
+      const qrInner = document.createElement('div');
+      qrDiv.appendChild(qrInner);
+      try {
+        new QRCode(qrInner, { text:data.ticket_token, width:200, height:200, colorDark:'#1a1a2e', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.H });
+      } catch (e) {
+        console.error('QR generation error:', e);
+      }
     }
 
     const info = document.createElement('div');
@@ -2028,6 +2074,7 @@ async function renderTicketQR(bookingId) {
 
 // ─── DRIVER QR CHECK-IN ────────────────────────────────
 let html5QrScanner = null;
+let checkinListenersAttached = false;
 
 function initCheckinScanner() {
   const scannerSection = document.getElementById('checkin-scanner-section');
@@ -2073,16 +2120,27 @@ function initCheckinScanner() {
     );
   }
 
-  document.getElementById('manual-checkin-btn').addEventListener('click', () => {
-    const val = document.getElementById('manual-token-input').value.trim();
-    if (val) processCheckin(val);
-  });
-  document.getElementById('manual-token-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      const val = e.target.value.trim();
+  if (!checkinListenersAttached) {
+    document.getElementById('manual-checkin-btn').addEventListener('click', () => {
+      const val = document.getElementById('manual-token-input').value.trim();
       if (val) processCheckin(val);
-    }
-  });
+    });
+    document.getElementById('manual-token-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const val = e.target.value.trim();
+        if (val) processCheckin(val);
+      }
+    });
+    checkinListenersAttached = true;
+  }
+}
+
+function stopCheckinScanner() {
+  if (html5QrScanner) {
+    html5QrScanner.clear().catch(() => {});
+    html5QrScanner = null;
+  }
+  checkinListenersAttached = false;
 }
 
 async function processCheckin(token) {
@@ -2094,22 +2152,31 @@ async function processCheckin(token) {
   resultEl.textContent = 'Verifying...';
 
   try {
-    const res = await api('POST', '/bookings/checkin', { token });
+    const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+    if (S.token) opts.headers['Authorization'] = `Bearer ${S.token}`;
+    opts.body = JSON.stringify({ token });
+    const res = await fetch('/api/bookings/checkin', opts);
+    const data = await res.json();
     
-    if (res.success) {
+    if (res.ok && data.success) {
       resultEl.style.background = '#dcfce7';
       resultEl.style.color = '#166534';
       resultEl.innerHTML = `
         <strong>✓ Checked In</strong><br>
-        ${res.passenger} · Seat ${res.seat}<br>
-        <span style="font-size:13px;opacity:0.8;">${res.route}</span>
+        ${data.passenger} · Seat ${data.seat}<br>
+        <span style="font-size:13px;opacity:0.8;">${data.route}</span>
       `;
       const input = document.getElementById('manual-token-input');
       if (input) input.value = '';
-    } else if (res.error) {
+      updateCheckinManifest(data.passenger, data.seat);
+    } else if (res.status === 409) {
+      resultEl.style.background = '#fef9c3';
+      resultEl.style.color = '#854d0e';
+      resultEl.innerHTML = `<strong>⚠ Already Checked In</strong><br>This passenger has already boarded.`;
+    } else {
       resultEl.style.background = '#fee2e2';
       resultEl.style.color = '#991b1b';
-      resultEl.textContent = `✗ ${res.error}`;
+      resultEl.textContent = `✗ ${data.error || 'Check-in failed'}`;
     }
   } catch (err) {
     resultEl.style.background = '#fee2e2';
@@ -2122,11 +2189,16 @@ async function processCheckin(token) {
   }, 5000);
 }
 
-function stopCheckinScanner() {
-  if (html5QrScanner) {
-    html5QrScanner.clear().catch(() => {});
-    html5QrScanner = null;
-  }
+function updateCheckinManifest(passengerName, seat) {
+  if (!passengerName) return;
+  S.manifest = S.manifest.map(p => {
+    const fullName = `${p.first_name} ${p.last_name}`;
+    if (fullName === passengerName && p.checkin_status !== 'checked') {
+      p.checkin_status = 'checked';
+      setTimeout(() => updateCheckinRow(p.id, passengerName, seat), 100);
+    }
+    return p;
+  });
 }
 
 // ─── DRIVER LIVE LOCATION BROADCAST ───────────────────
@@ -2175,14 +2247,19 @@ function startLocationBroadcast(routeId) {
     alert('Geolocation is not supported on this device.');
     return;
   }
+  if (!S.socket) return;
+  if (locationWatchId !== null) {
+    navigator.geolocation.clearWatch(locationWatchId);
+    locationWatchId = null;
+  }
 
-  socket.emit('location:start', { routeId });
+  S.socket.emit('location:start', { routeId });
   isLiveBroadcasting = true;
   updateLiveBtnState(true);
 
   locationWatchId = navigator.geolocation.watchPosition(
     (pos) => {
-      socket.emit('location:update', {
+      S.socket.emit('location:update', {
         routeId,
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -2207,8 +2284,8 @@ function stopLocationBroadcast(routeId) {
     navigator.geolocation.clearWatch(locationWatchId);
     locationWatchId = null;
   }
-  if (isLiveBroadcasting) {
-    socket.emit('location:stop', { routeId });
+  if (isLiveBroadcasting && S.socket) {
+    S.socket.emit('location:stop', { routeId });
     isLiveBroadcasting = false;
   }
   updateLiveBtnState(false);
@@ -2268,43 +2345,45 @@ function initPassengerLiveMap(routeId) {
     .bindPopup('Driver location');
   driverMarker.setOpacity(0);
 
-  socket.emit('route:watch', { routeId });
+  if (S.socket) {
+    S.socket.emit('route:watch', { routeId });
 
-  socket.on('location:broadcast', ({ lat, lng, timestamp }) => {
-    const pos = [lat, lng];
-    driverMarker.setLatLng(pos);
-    driverMarker.setOpacity(1);
-    passengerMap.panTo(pos, { animate: true, duration: 0.8 });
+    S.socket.on('location:broadcast', ({ lat, lng, timestamp }) => {
+      const pos = [lat, lng];
+      driverMarker.setLatLng(pos);
+      driverMarker.setOpacity(1);
+      passengerMap.panTo(pos, { animate: true, duration: 0.8 });
 
-    const statusEl = document.getElementById('map-status');
-    if (statusEl) {
-      const ago = Math.round((Date.now() - timestamp) / 1000);
-      statusEl.textContent = `Live · Updated ${ago}s ago`;
-      statusEl.style.background = 'rgba(34, 197, 94, 0.85)';
-    }
-  });
+      const statusEl = document.getElementById('map-status');
+      if (statusEl) {
+        const ago = Math.round((Date.now() - timestamp) / 1000);
+        statusEl.textContent = `Live · Updated ${ago}s ago`;
+        statusEl.style.background = 'rgba(34, 197, 94, 0.85)';
+      }
+    });
 
-  socket.on('driver:online', () => {
-    const statusEl = document.getElementById('map-status');
-    if (statusEl) statusEl.textContent = 'Driver is live…';
-  });
+    S.socket.on('driver:online', () => {
+      const statusEl = document.getElementById('map-status');
+      if (statusEl) statusEl.textContent = 'Driver is live…';
+    });
 
-  socket.on('driver:offline', () => {
-    const statusEl = document.getElementById('map-status');
-    if (statusEl) {
-      statusEl.textContent = 'Driver ended the trip';
-      statusEl.style.background = 'rgba(0,0,0,0.65)';
-    }
-    driverMarker.setOpacity(0.4);
-  });
+    S.socket.on('driver:offline', () => {
+      const statusEl = document.getElementById('map-status');
+      if (statusEl) {
+        statusEl.textContent = 'Driver ended the trip';
+        statusEl.style.background = 'rgba(0,0,0,0.65)';
+      }
+      driverMarker.setOpacity(0.4);
+    });
+  }
 }
 
 function destroyPassengerMap() {
-  if (activeWatchRouteId) {
-    socket.emit('route:unwatch', { routeId: activeWatchRouteId });
-    socket.off('location:broadcast');
-    socket.off('driver:online');
-    socket.off('driver:offline');
+  if (activeWatchRouteId && S.socket) {
+    S.socket.emit('route:unwatch', { routeId: activeWatchRouteId });
+    S.socket.off('location:broadcast');
+    S.socket.off('driver:online');
+    S.socket.off('driver:offline');
     activeWatchRouteId = null;
   }
   if (passengerMap) {

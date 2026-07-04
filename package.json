@@ -8,7 +8,8 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "NODE_ENV=development node server.js"
+    "dev": "NODE_ENV=development node server.js",
+    "test": "npx playwright test --reporter=list"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.102.1",
@@ -23,5 +24,9 @@
     "playwright": "^1.59.1",
     "socket.io": "^4.7.4",
     "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.110.0",
+    "@playwright/test": "^1.61.1"
   }
 }

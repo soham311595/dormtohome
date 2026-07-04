@@ -34,10 +34,16 @@ router.get('/', async (req, res) => {
     if (route_number) { sql += ` AND route_number LIKE $${i++}`;        params.push(`%${route_number.toUpperCase()}%`); }
     sql += ' ORDER BY departure_date, departure_time';
     let routes = await all(sql, params);
+    console.log(`[ROUTES] RAW SQL returned ${routes.length} row(s) | sql="${sql}" params=${JSON.stringify(params)}`);
+    routes.forEach(r => console.log(`[ROUTES]   raw row: id=${r.id} num=${r.route_number} from=${r.from_city} to=${r.to_city} date=${r.departure_date} status=${r.status}`));
     routes = await Promise.all(routes.map(enrichRoute));
     if (min_seats) routes = routes.filter(r => r.available_seats >= parseInt(min_seats));
+    console.log(`[ROUTES] Returning ${routes.length} route(s) to client`);
     res.json(routes);
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) {
+    console.log(`[ROUTES] ERROR: ${e.message}`);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET /api/routes/driver/mine — MUST be before /:id
@@ -113,6 +119,9 @@ router.put('/:id', authMiddleware, requireRole('driver'), async (req, res) => {
 // PATCH /api/routes/:id/stops/:stopId
 router.patch('/:id/stops/:stopId', authMiddleware, requireRole('driver'), async (req, res) => {
   try {
+    const route = await get('SELECT driver_id FROM routes WHERE id=$1', [req.params.id]);
+    if (!route) return res.status(404).json({ error: 'Route not found' });
+    if (route.driver_id !== req.user.id) return res.status(403).json({ error: 'Not your route' });
     await run('UPDATE route_stops SET status=$1 WHERE id=$2 AND route_id=$3', [req.body.status, req.params.stopId, req.params.id]);
     res.json(await all('SELECT * FROM route_stops WHERE route_id=$1 ORDER BY order_index', [req.params.id]));
   } catch (e) { res.status(500).json({ error: e.message }); }
