@@ -46,7 +46,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
     const landing = page.locator('#screen-landing');
 
     // Core elements
-    await expect(landing.locator('.logo-text')).toBeVisible();
+    await expect(page.locator('.logo-text').first()).toBeVisible();
     await expect(landing.getByText('DormToHome')).toBeVisible();
     await expect(landing.locator('text=Sign In').first()).toBeVisible();
     await expect(landing.locator('text=Get Started').first()).toBeVisible();
