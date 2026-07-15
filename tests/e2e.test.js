@@ -49,8 +49,8 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     const landing = page.locator('#screen-landing');
 
-    // Core elements
-    await expect(page.locator('.logo-text').first()).toBeVisible();
+    // Core elements (generous timeout for cold-start Render instance)
+    await expect(page.locator('.logo-text').first()).toBeVisible({ timeout: 15000 });
     await expect(landing.getByText('DormToHome')).toBeVisible();
     await expect(landing.locator('text=Sign In').first()).toBeVisible();
     await expect(landing.locator('text=Get Started').first()).toBeVisible();
@@ -585,30 +585,33 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await expect(page.locator('#screen-passenger')).toBeVisible({ timeout: 12000 });
     await page.waitForTimeout(300);
 
-    // Step 1: Open wizard, set Frisco TX, advance via evaluate
+    // Step 1: Open wizard
+    await page.evaluate(() => { openRequestWizard(); });
+    await expect(page.locator('#req-from')).toBeVisible({ timeout: 5000 });
+
+    // Fill departure and advance
     await page.evaluate(() => {
-      openRequestWizard();
       const inp = document.getElementById('req-from'); if (inp) inp.value = 'Frisco, TX';
       S.reqData.from_city = 'Frisco, TX';
       reqNext();
     });
-    await page.waitForTimeout(200);
+    await expect(page.locator('#req-to')).toBeVisible({ timeout: 5000 });
 
-    // Step 2: Set Plano TX, advance via evaluate
+    // Step 2: Set arrival and advance
     await page.evaluate(() => {
       const inp = document.getElementById('req-to'); if (inp) inp.value = 'Plano, TX';
       S.reqData.to_city = 'Plano, TX';
       reqNext();
     });
-    await page.waitForTimeout(200);
+    await expect(page.locator('#req-date')).toBeVisible({ timeout: 5000 });
 
-    // Step 3: Enter date, advance via evaluate
+    // Step 3: Enter date and advance
     await page.evaluate(() => {
       const inp = document.getElementById('req-date'); if (inp) inp.value = '2026-08-15';
       S.reqData.requested_date = '2026-08-15';
       reqNext();
     });
-    await page.waitForTimeout(200);
+    await expect(page.locator('#req-dep')).toBeVisible({ timeout: 5000 });
 
     // Step 4: Set departure time, read calculated arrival
     await page.evaluate(() => {
@@ -616,8 +619,6 @@ test.describe.serial('DormToHome E2E Tests', () => {
       S.reqData.requested_time = '09:00';
       updateReqArrival();
     });
-
-    // Wait for arrival input to render and read value
     await expect(page.locator('#req-arr')).toBeVisible({ timeout: 5000 });
     const arrValue = await page.evaluate(() => document.getElementById('req-arr')?.value || '');
     const [depH, depM] = [9, 0];
