@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { all, get, run } = require('../db/database');
 const { generateToken } = require('../db/database');
 const { authMiddleware, requireRole, optionalAuth } = require('../middleware/auth');
+const { sendEmail, bookingConfirmationHTML, newBookingAlertHTML } = require('../utils/email');
 
 // ── BOOKINGS ──────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, r
     if (await get('SELECT id FROM bookings WHERE route_id=$1 AND seat_number=$2', [route_id, seat_number]))
       return res.status(409).json({ error: 'Seat already taken' });
 
-    const route = await get('SELECT price_per_seat, package_price FROM routes WHERE id=$1', [route_id]);
+    const route = await get('SELECT * FROM routes WHERE id=$1', [route_id]);
     if (!route) return res.status(404).json({ error: 'Route not found' });
 
     const amount = booking_type === 'package' ? route.package_price : route.price_per_seat;
@@ -49,6 +50,35 @@ router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, r
     );
     await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`,
       [uuidv4(), req.user.id, 'Booking Confirmed!', `Seat ${seat_number} booked successfully.`, 'success']);
+
+    // Send booking confirmation to passenger
+    const driver = await get('SELECT first_name, last_name, email FROM users WHERE id=$1', [route.driver_id]);
+    const driverName = driver ? `${driver.first_name} ${driver.last_name}` : 'TBD';
+    sendEmail(req.user.email, 'Booking Confirmed — DormToHome', bookingConfirmationHTML({
+      passengerName: `${req.user.first_name} ${req.user.last_name}`,
+      from: route.from_city,
+      to: route.to_city,
+      routeNumber: route.route_number,
+      seatNumber: seat_number,
+      date: route.departure_date,
+      time: route.departure_time,
+      driverName,
+      amount,
+    }));
+
+    // New booking alert to driver
+    if (driver && driver.email) {
+      sendEmail(driver.email, 'New Booking Alert — DormToHome', newBookingAlertHTML({
+        passengerName: `${req.user.first_name} ${req.user.last_name}`,
+        from: route.from_city,
+        to: route.to_city,
+        routeNumber: route.route_number,
+        seatNumber: seat_number,
+        date: route.departure_date,
+        time: route.departure_time,
+      }));
+    }
+
     res.json({ id, seat_number, amount_paid: amount, checkin_status: 'pending', ticket_token: ticketToken });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

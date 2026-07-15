@@ -22,6 +22,7 @@
     "nodemailer": "^6.9.8",
     "pg": "^8.11.3",
     "playwright": "^1.59.1",
+    "resend": "^6.17.2",
     "socket.io": "^4.7.4",
     "uuid": "^9.0.1"
   },

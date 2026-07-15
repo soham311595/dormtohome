@@ -172,6 +172,12 @@ test.describe.serial('DormToHome E2E Tests', () => {
     // Seat map should load
     await expect(page.locator('.seat-map')).toBeVisible({ timeout: 5000 });
 
+    // Set up interception for booking API response
+    const bookingResPromise = page.waitForResponse(
+      res => res.url().includes('/api/bookings') && res.request().method() === 'POST' && !res.url().includes('taken'),
+      { timeout: 15000 }
+    ).catch(() => null);
+
     // Select seat, destination stop, and confirm via evaluate
     // (use evaluate to avoid seat-map row-gap where rows 1-2 are missing)
     const booked = await page.evaluate(async () => {
@@ -194,6 +200,14 @@ test.describe.serial('DormToHome E2E Tests', () => {
     if (booked) {
       const toast = await waitForToast('success', 6000, 'confirmed');
       await clearToast();
+      const bookingRes = await bookingResPromise;
+      expect(bookingRes).not.toBeNull();
+      expect(bookingRes.status()).toBe(200);
+      const body = await bookingRes.json();
+      expect(body).toHaveProperty('id');
+      expect(body).toHaveProperty('seat_number');
+      expect(body).toHaveProperty('amount_paid');
+      expect(body).toHaveProperty('ticket_token');
     } else {
       await page.evaluate(() => closeModal('modal-seats'));
     }
