@@ -112,10 +112,18 @@ test.describe.serial('DormToHome E2E Tests', () => {
       console.log(`[DEBUG] /api/routes never fired or errored: ${e.message}`);
     }
 
-    // Routes should load — wait until at least one route card is visible
-    await waitForSpinner();
+    // Routes should load — retry if API was not ready (e.g. 502 on cold start)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await waitForSpinner();
+      const visible = await page.locator('#screen-passenger .route-card').first().isVisible().catch(() => false);
+      if (visible) break;
+      if (attempt < 2) {
+        await page.evaluate(() => pTab('routes'));
+        await page.waitForTimeout(1000);
+      }
+    }
     const routeCard = page.locator('#screen-passenger .route-card').first();
-    await expect(routeCard).toBeVisible({ timeout: 30000 });
+    await expect(routeCard).toBeVisible({ timeout: 15000 });
     const routeCards = await page.locator('#screen-passenger .route-card').count();
     expect(routeCards).toBeGreaterThan(0);
   });
