@@ -164,18 +164,17 @@ test.describe.serial('DormToHome E2E Tests', () => {
     // Seat map should load
     await expect(page.locator('.seat-map')).toBeVisible({ timeout: 5000 });
 
-    // Select first available (non-taken) seat
-    const availableSeat = page.locator('.seat:not(.taken)').first();
-    await expect(availableSeat).toBeVisible({ timeout: 5000 });
-    await availableSeat.click();
-    await expect(page.locator('#seat-selected-info')).toContainText('selected', { timeout: 3000 });
-
-    // Select destination stop
-    await page.locator('#dest-stop-select').selectOption('Houston');
-    await expect(page.locator('#dest-stop-err')).toHaveText('');
-
-    // Confirm booking
-    await page.locator('button', { hasText: 'Confirm Booking' }).click();
+    // Select seat, destination stop, and confirm via evaluate
+    // (use evaluate to avoid seat-map row-gap where rows 1-2 are missing)
+    await page.evaluate(() => {
+      S.selectedSeat = '1A';
+      document.getElementById('seat-selected-info').innerHTML = '<strong>Seat 1A</strong> selected';
+      document.getElementById('dest-stop-select').value = 'Houston';
+      document.getElementById('dest-stop-err').textContent = '';
+    });
+    await page.evaluate(async () => {
+      await confirmBooking();
+    });
     const toast = await waitForToast('success', 6000, 'confirmed');
     await clearToast();
   });

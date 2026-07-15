@@ -371,8 +371,10 @@ async function renderPassengerRoutes() {
     const routes = await api('GET', `/routes${query ? '?' + query : ''}`, null, false);
     S.allRoutes = routes;
     const reqs = await api('GET', '/requests');
-    S.requests = reqs;
-    document.getElementById('p-content').innerHTML = buildRoutesPage(routes, reqs);
+    const today = getTodayStr();
+    const activeReqs = reqs.filter(r => !r.requested_date || r.requested_date >= today);
+    S.requests = activeReqs;
+    document.getElementById('p-content').innerHTML = buildRoutesPage(routes, activeReqs);
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1777,7 +1779,9 @@ function buildDriverLivePage(route) {
 async function renderRequested() {
   try {
     const reqs = await api('GET', '/requests');
-    document.getElementById('d-content').innerHTML = buildRequestedPage(reqs);
+    const today = getTodayStr();
+    const activeReqs = reqs.filter(r => !r.requested_date || r.requested_date >= today);
+    document.getElementById('d-content').innerHTML = buildRequestedPage(activeReqs);
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1945,6 +1949,11 @@ function toggleLocationSharing() {
 }
 
 // ─── REQUEST WIZARD ──────────────────────────────────────
+function getTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function openRequestWizard() {
   S.reqStep = 1; S.reqData = {};
   showRequestStep();
@@ -1969,7 +1978,8 @@ function showRequestStep() {
     <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
 
   else if (S.reqStep === 3) html += `<div class="section-title">What date do you need this route?</div>
-    <input class="form-input" type="date" style="color:var(--navy-dark);background:var(--gray-100)" id="req-date" value="${S.reqData.requested_date || ''}">
+    <input class="form-input" type="date" style="color:var(--navy-dark);background:var(--gray-100)" id="req-date" value="${S.reqData.requested_date || ''}" min="${getTodayStr()}">
+    <div id="req-date-err" style="color:var(--error);font-size:.75rem;margin-top:4px"></div>
     <div style="display:flex;gap:10px;margin-top:16px"><button class="btn btn-sm" style="background:var(--gray-100);color:var(--error)" onclick="cancelRequest()">Cancel</button><button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="reqBack()">← Back</button><button class="btn btn-gold" onclick="reqNext()">Next →</button></div>`;
 
   else if (S.reqStep === 4) {
@@ -2035,7 +2045,15 @@ function reqNext() {
       return;
     }
   }
-  if (S.reqStep === 3) S.reqData.requested_date = document.getElementById('req-date')?.value;
+  if (S.reqStep === 3) {
+    const val = document.getElementById('req-date')?.value;
+    if (!val || val < getTodayStr()) {
+      const err = document.getElementById('req-date-err');
+      if (err) err.textContent = 'Please select a future date';
+      return;
+    }
+    S.reqData.requested_date = val;
+  }
   if (S.reqStep === 4) {
     S.reqData.requested_time = document.getElementById('req-dep')?.value;
     S.reqData.arrival_time = document.getElementById('req-arr')?.value;
