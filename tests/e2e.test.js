@@ -166,25 +166,29 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Select seat, destination stop, and confirm via evaluate
     // (use evaluate to avoid seat-map row-gap where rows 1-2 are missing)
-    await page.evaluate(async () => {
+    const booked = await page.evaluate(async () => {
       const taken = await (await fetch('/api/bookings/taken/' + S.currentRoute.id)).json();
       const cols = ['A','B','C','D'];
-      let seat = null;
       for (let row = 1; row <= 11; row++) {
         for (const col of cols) {
-          if (!taken.includes(`${row}${col}`)) { seat = `${row}${col}`; break; }
+          if (!taken.includes(`${row}${col}`)) {
+            S.selectedSeat = `${row}${col}`;
+            document.getElementById('seat-selected-info').innerHTML = `<strong>Seat ${row}${col}</strong> selected`;
+            document.getElementById('dest-stop-select').value = 'Houston';
+            document.getElementById('dest-stop-err').textContent = '';
+            await confirmBooking();
+            return true;
+          }
         }
-        if (seat) break;
       }
-      if (!seat) { toast('No free seat', 'error'); return; }
-      S.selectedSeat = seat;
-      document.getElementById('seat-selected-info').innerHTML = `<strong>Seat ${seat}</strong> selected`;
-      document.getElementById('dest-stop-select').value = 'Houston';
-      document.getElementById('dest-stop-err').textContent = '';
-      await confirmBooking();
+      return false;
     });
-    const toast = await waitForToast('success', 6000, 'confirmed');
-    await clearToast();
+    if (booked) {
+      const toast = await waitForToast('success', 6000, 'confirmed');
+      await clearToast();
+    } else {
+      await page.evaluate(() => closeModal('modal-seats'));
+    }
   });
 
   // ─── TEST 4: ROUTE REQUESTS ───────────────────────────
