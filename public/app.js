@@ -1760,7 +1760,11 @@ function renderStopsLive(stops) {
 async function renderDriverLive() {
   try {
     const routes = await api('GET', '/routes/driver/mine');
-    const activeRoute = routes.find(r => r.status === 'active') || routes[0];
+    console.log('[LIVE] Driver routes:', routes.map(r => ({ id: r.id, num: r.route_number, status: r.status, stops: r.stops?.length, cps: (r.stops||[]).filter(s => s.type==='checkpoint').length })));
+    const activeRoute = routes.find(r => r.status === 'active' && (r.stops||[]).some(s => s.type === 'checkpoint'))
+                     || routes.find(r => r.status === 'active')
+                     || routes[0];
+    console.log('[LIVE] Selected route:', activeRoute?.id, activeRoute?.route_number, 'checkpoints:', (activeRoute?.stops||[]).filter(s => s.type==='checkpoint').length);
     if (!activeRoute) {
       document.getElementById('d-content').innerHTML = `<div class="page-header"><div><div class="page-title">Live Tracking</div></div></div>${emptyState('No active routes. Create or activate a route first.')}`;
       return;
@@ -2437,6 +2441,8 @@ let isLiveBroadcasting = false;
 function initDriverLiveTab(route) {
   const routeId = route.id;
   const checkpoints = (route.stops || []).filter(s => s.type === 'checkpoint');
+  console.log('[LIVE] initDriverLiveTab route:', route.route_number, 'total stops:', route.stops?.length, 'checkpoints:', checkpoints.length);
+  if (checkpoints.length) console.log('[LIVE] Checkpoints:', checkpoints.map(c => c.city + '(' + c.id.slice(0,8) + ')'));
   const liveSection = document.getElementById('driver-live-section');
   if (!liveSection) return;
 
@@ -2465,13 +2471,16 @@ function initDriverLiveTab(route) {
         <p style="font-size:13px;color:#6b7280;margin-bottom:12px;">
           Trigger a test checkpoint notification to guardians. No actual stop status is changed.
         </p>
-        <select id="checkpoint-select" style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:12px;color:var(--navy-dark);background:white;">
-          <option value="">Select a checkpoint…</option>
-          ${checkpoints.map(c => `<option value="${c.id}">${c.city}</option>`).join('')}
-        </select>
-        <button class="btn btn-outline-gold btn-full" onclick="simulateCheckpoint()">
-          Send Checkpoint Notification
-        </button>
+        ${checkpoints.length
+          ? `<select id="checkpoint-select" style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;margin-bottom:12px;color:var(--navy-dark);background:white;">
+               <option value="">Select a checkpoint…</option>
+               ${checkpoints.map(c => `<option value="${c.id}">${c.city}</option>`).join('')}
+             </select>
+             <button class="btn btn-outline-gold btn-full" onclick="simulateCheckpoint()">
+               Send Checkpoint Notification
+             </button>`
+          : `<p style="font-size:13px;color:#9ca3af;text-align:center;padding:12px 0;">No checkpoints on this route. Select a different route from My Routes.</p>`
+        }
         <div id="simulate-result" style="margin-top:8px;font-size:13px;"></div>
       </div>
     </div>

@@ -218,7 +218,11 @@ async function seedDatabase() {
     { route:'r-001', city:'Conroe, TX',      type:'stop',       idx:3, time:'10:00 AM' },
     { route:'r-006', city:'Round Rock, TX',  type:'stop',       idx:1, time:'7:00 AM'  },
     { route:'r-006', city:'Waco, TX',        type:'checkpoint', idx:2, time:'8:15 AM'  },
+    { route:'r-008', city:'Arlington, TX',   type:'stop',       idx:1, time:'2:00 PM'  },
+    { route:'r-008', city:'Waco, TX',        type:'checkpoint', idx:2, time:null       },
+    { route:'r-008', city:'College Station', type:'stop',       idx:3, time:'4:00 PM'  },
     { route:'r-010', city:'Bryan, TX',       type:'stop',       idx:1, time:'8:30 AM'  },
+    { route:'r-010', city:'Austin, TX',      type:'checkpoint', idx:2, time:null       },
   ]) {
     await run(`INSERT INTO route_stops VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [uuidv4(), s.route, s.city, s.type, s.idx, s.time, 'upcoming']);
