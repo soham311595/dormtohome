@@ -166,13 +166,21 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Select seat, destination stop, and confirm via evaluate
     // (use evaluate to avoid seat-map row-gap where rows 1-2 are missing)
-    await page.evaluate(() => {
-      S.selectedSeat = '1A';
-      document.getElementById('seat-selected-info').innerHTML = '<strong>Seat 1A</strong> selected';
+    await page.evaluate(async () => {
+      const taken = await (await fetch('/api/bookings/taken/' + S.currentRoute.id)).json();
+      const cols = ['A','B','C','D'];
+      let seat = null;
+      for (let row = 1; row <= 11; row++) {
+        for (const col of cols) {
+          if (!taken.includes(`${row}${col}`)) { seat = `${row}${col}`; break; }
+        }
+        if (seat) break;
+      }
+      if (!seat) { toast('No free seat', 'error'); return; }
+      S.selectedSeat = seat;
+      document.getElementById('seat-selected-info').innerHTML = `<strong>Seat ${seat}</strong> selected`;
       document.getElementById('dest-stop-select').value = 'Houston';
       document.getElementById('dest-stop-err').textContent = '';
-    });
-    await page.evaluate(async () => {
       await confirmBooking();
     });
     const toast = await waitForToast('success', 6000, 'confirmed');
@@ -398,6 +406,16 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await passenger.locator('button', { hasText: 'Save Changes' }).click();
     await waitForToast('success');
     await clearToast();
+
+    // Notifications section — two subsections
+    const notifCard = passenger.locator('.card').nth(1);
+    await expect(notifCard.getByText('User Notifications')).toBeVisible({ timeout: 3000 });
+    await expect(notifCard.getByText('New route alerts')).toBeVisible({ timeout: 3000 });
+    await expect(notifCard.getByText('Chat messages')).toBeVisible({ timeout: 3000 });
+    await expect(notifCard.getByText('Guardian Notifications')).toBeVisible({ timeout: 3000 });
+    await expect(notifCard.getByText('Arrival alerts (15 min)')).toBeVisible({ timeout: 3000 });
+    await expect(notifCard.getByText('Check in alerts')).toBeVisible({ timeout: 3000 });
+    await expect(notifCard.getByText('Checkpoint alerts')).toBeVisible({ timeout: 3000 });
 
     // Guardian section
     await expect(passenger.getByText('Guardian Contacts')).toBeVisible({ timeout: 3000 });
