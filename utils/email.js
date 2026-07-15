@@ -5,6 +5,11 @@ const resend = process.env.RESEND_API_KEY
   : null;
 
 async function sendEmail(to, subject, html) {
+  // TEMP: Remove this override once domain is verified
+  const original = to;
+  to = 'daniil.m.arnold@gmail.com';
+  subject = `[TEST - original recipient: ${original}] ${subject}`;
+
   if (!resend) {
     console.warn('[EMAIL] RESEND_API_KEY not set, skipping email to', to);
     return;
