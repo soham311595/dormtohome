@@ -126,6 +126,17 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await expect(routeCard).toBeVisible({ timeout: 15000 });
     const routeCards = await page.locator('#screen-passenger .route-card').count();
     expect(routeCards).toBeGreaterThan(0);
+
+    // Click the logo while logged in as passenger → stay on passenger screen
+    await page.locator('#screen-passenger .logo').click();
+    await expect(page.locator('#screen-passenger')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#screen-passenger .route-card').first()).toBeVisible({ timeout: 5000 });
+
+    // Click avatar → dropdown with Account Settings and Sign Out
+    await page.locator('#p-avatar').click();
+    await expect(page.locator('#p-avatar-dropdown')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#p-avatar-dropdown')).toContainText('Account Settings');
+    await expect(page.locator('#p-avatar-dropdown')).toContainText('Sign Out');
   });
 
   // ─── TEST 3: AVAILABLE ROUTES ──────────────────────────

@@ -306,6 +306,36 @@ function setAvatarInitials(id, user) {
   if (el) el.textContent = (user.first_name[0] + user.last_name[0]).toUpperCase();
 }
 
+function handleLogoClick() {
+  if (S.user?.role === 'passenger') {
+    pTab('routes');
+  } else if (S.user?.role === 'driver') {
+    dTab('dashboard');
+  } else {
+    showScreen('screen-landing');
+  }
+}
+
+function closeAllAvatarMenus() {
+  document.querySelectorAll('.avatar-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+function toggleAvatarMenu(el) {
+  const wrapper = el.closest('.avatar-wrapper');
+  if (!wrapper) return;
+  const dropdown = wrapper.querySelector('.avatar-dropdown');
+  if (!dropdown) return;
+  const isOpen = dropdown.classList.contains('open');
+  closeAllAvatarMenus();
+  if (!isOpen) dropdown.classList.add('open');
+}
+
+document.addEventListener('click', function (e) {
+  if (!e.target.closest('.avatar-wrapper')) {
+    closeAllAvatarMenus();
+  }
+});
+
 // ─── SCREEN ROUTING ───────────────────────────────────────
 function fmtDate(d) {
   if (!d) return '';
