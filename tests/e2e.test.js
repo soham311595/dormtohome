@@ -526,6 +526,14 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await expect(driver.getByText('Upcoming Trips')).toBeVisible({ timeout: 5000 });
     await expect(driver.locator('.section-title', { hasText: 'Location Sharing' })).toBeVisible({ timeout: 5000 });
 
+    // Driver avatar dropdown — only Sign Out, not Account Settings
+    await page.locator('#d-avatar').click();
+    await expect(page.locator('#d-avatar-dropdown')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#d-avatar-dropdown')).toContainText('Sign Out');
+    await expect(page.locator('#d-avatar-dropdown')).not.toContainText('Account Settings');
+    await page.locator('body').click({ position: { x: 0, y: 0 } });
+    await expect(page.locator('#d-avatar-dropdown')).not.toBeVisible({ timeout: 3000 });
+
     // My Routes
     await driver.locator('[data-tab="routes"]').click();
     await waitForSpinner();
@@ -534,6 +542,30 @@ test.describe.serial('DormToHome E2E Tests', () => {
     if (hasDriverRoutes) {
       await expect(driver.locator('.route-card').first()).toBeVisible({ timeout: 5000 });
     }
+
+    // My Routes tabs — click Completed then Draft, verify routes or empty state
+    const completedTab = driver.locator('.tabs .tab', { hasText: 'Completed' });
+    await expect(completedTab).toBeVisible({ timeout: 3000 });
+    await completedTab.click();
+    await page.waitForTimeout(300);
+    const hasCompletedRoutes = await driver.locator('.route-card').first().isVisible().catch(() => false);
+    if (!hasCompletedRoutes) {
+      await expect(driver.getByText('No completed routes yet')).toBeVisible({ timeout: 3000 });
+    }
+
+    const draftTab = driver.locator('.tabs .tab', { hasText: 'Draft' });
+    await expect(draftTab).toBeVisible({ timeout: 3000 });
+    await draftTab.click();
+    await page.waitForTimeout(300);
+    const hasDraftRoutes = await driver.locator('.route-card').first().isVisible().catch(() => false);
+    if (!hasDraftRoutes) {
+      await expect(driver.getByText('No draft routes yet')).toBeVisible({ timeout: 3000 });
+    }
+
+    // Back to Active tab for remaining tests
+    const activeTab = driver.locator('.tabs .tab', { hasText: 'Active' });
+    await activeTab.click();
+    await page.waitForTimeout(300);
 
     // New Route creation wizard
     await driver.locator('[data-tab="create"]').click();

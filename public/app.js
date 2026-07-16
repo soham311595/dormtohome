@@ -40,6 +40,7 @@ const S = {
   manifest: [],
   locationInterval: null,
   busAnimInterval: null,
+  driverRoutesTab: 'active',
 };
 
 // ─── GLOBAL CLICK DISPATCHER ───────────────────────────────
@@ -1447,13 +1448,21 @@ async function renderDriverRoutes() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+function driverRoutesTab(tab) {
+  S.driverRoutesTab = tab;
+  document.getElementById('d-content').innerHTML = buildDriverRoutesPage(S.myRoutes);
+}
+
 function buildDriverRoutesPage(routes) {
+  const tab = S.driverRoutesTab || 'active';
+  const filtered = routes.filter(r => r.status === tab);
+  const msgs = { active: 'No active routes yet', completed: 'No completed routes yet', draft: 'No draft routes yet' };
   let html = `
   <div class="page-header"><div><div class="page-title">My Routes</div><div class="page-sub">All your posted routes</div></div><button class="btn btn-gold" onclick="dTab('create')">+ New Route</button></div>
-  <div class="tabs"><div class="tab active">Active</div><div class="tab">Completed</div><div class="tab">Draft</div></div>
-  <div class="routes-grid">`;
-  if (routes.length) {
-    routes.forEach(r => {
+  <div class="tabs"><div class="tab${tab === 'active' ? ' active' : ''}" onclick="driverRoutesTab('active')">Active</div><div class="tab${tab === 'completed' ? ' active' : ''}" onclick="driverRoutesTab('completed')">Completed</div><div class="tab${tab === 'draft' ? ' active' : ''}" onclick="driverRoutesTab('draft')">Draft</div></div>`;
+  if (filtered.length) {
+    html += `<div class="routes-grid">`;
+    filtered.forEach(r => {
       html += `<div class="route-card">
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -1477,8 +1486,10 @@ function buildDriverRoutesPage(routes) {
       </div>
     </div>`;
     });
+    html += `</div>`;
+  } else {
+    html += emptyState(msgs[tab] || 'No routes found');
   }
-  html += `</div>`;
   return html;
 }
 
