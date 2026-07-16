@@ -419,7 +419,8 @@ test.describe.serial('DormToHome E2E Tests', () => {
     const passenger = page.locator('#screen-passenger');
 
     // Profile section
-    await expect(passenger.getByText('Account Settings')).toBeVisible({ timeout: 5000 });
+    await expect(passenger.locator('.page-title').first()).toBeVisible({ timeout: 5000 });
+    await expect(passenger.locator('.page-title').first()).toContainText('Account Settings');
     await expect(passenger.getByText('Profile')).toBeVisible({ timeout: 3000 });
 
     // Avatar initials should be visible
