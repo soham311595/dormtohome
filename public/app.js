@@ -1181,7 +1181,7 @@ function buildMsgBubble(m) {
   const hasReply = m.reply_sender_name && m.reply_content;
   const snippet = (m.reply_content || '').substring(0, 80);
   return `<div class="chat-msg ${isMe ? 'me' : 'them'} ${isNotif ? 'notif-msg' : ''}">
-    ${!isMe ? `<div class="msg-sender">${m.sender_name} · ${m.sender_role}</div>` : ''}
+    ${!isMe ? `<div class="msg-sender">${m.sender_name} · ${m.sender_role.charAt(0).toUpperCase() + m.sender_role.slice(1)}</div>` : ''}
     ${hasReply ? `<div class="msg-reply"><strong>${escHtml(m.reply_sender_name)}</strong> ${escHtml(snippet)}${m.reply_content.length > 80 ? '…' : ''}</div>` : ''}
     <div class="msg-bubble">${m.content}</div>
     <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
