@@ -1684,29 +1684,29 @@ function recalcStopDuration() {
   const stopRows = document.querySelectorAll('#create-stops-list > div');
   const stopCount = stopRows.length;
   const extraMin = stopCount * 15;
-  const durEl = document.getElementById('cr-duration');
-  const arrEl = document.getElementById('cr-arr-time');
-  const depEl = document.getElementById('cr-dep-time');
-  if (!durEl || !arrEl || !depEl) return;
-  const baseDuration = S.createData.duration || durEl.value;
+  const note = document.getElementById('stop-duration-note');
+  if (!note) return;
+  const baseDuration = S.createData.duration;
   let baseMin = 0;
-  const m = baseDuration.match(/(\d+)h\s*(\d+)?m?/);
-  if (m) baseMin = parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
-  const depParts = depEl.value.split(':').map(Number);
-  if (baseMin > 0 && depParts.length === 2) {
+  if (baseDuration) {
+    const m = baseDuration.match(/(\d+)h\s*(\d+)?m?/);
+    if (m) baseMin = parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
+  }
+  if (baseMin > 0) {
     const newTotal = baseMin + extraMin;
     const h = Math.floor(newTotal / 60);
     const m2 = newTotal % 60;
-    durEl.value = `${h}h ${m2}m`;
-    const arrDate = new Date(2000, 0, 1, depParts[0], depParts[1] + newTotal);
-    arrEl.value = `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`;
+    S.createData.duration = `${h}h ${m2}m`;
+    const depTime = S.createData.departure_time || '08:00';
+    const depParts = depTime.split(':').map(Number);
+    if (depParts.length === 2) {
+      const arrDate = new Date(2000, 0, 1, depParts[0], depParts[1] + newTotal);
+      S.createData.arrival_time = `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`;
+    }
   }
-  const note = document.getElementById('stop-duration-note');
-  if (note) {
-    note.textContent = stopCount > 0
-      ? `Each stop adds ~15 min to your route duration. Current added time: ${extraMin} min (${stopCount} stop${stopCount > 1 ? 's' : ''}).`
-      : '';
-  }
+  note.textContent = stopCount > 0
+    ? `Each stop adds ~15 min to your route duration. Current added time: ${extraMin} min (${stopCount} stop${stopCount > 1 ? 's' : ''}).`
+    : '';
 }
 
 function collectCreateData() {
