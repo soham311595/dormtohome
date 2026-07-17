@@ -1091,6 +1091,7 @@ async function renderPassengerMessages() {
       S.chatRoute = defaultRoom.route_id;
     }
     document.getElementById('p-content').innerHTML = buildChatUI(rooms, msgs, defaultRoom);
+    scrollChatToBottom();
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1106,6 +1107,7 @@ async function renderDriverMessages() {
       S.chatRoute = defaultRoom.id;
     }
     document.getElementById('d-content').innerHTML = buildChatUI(rooms.map(r => ({ route_id: r.id, route_number: r.route_number, from_city: r.from_city, to_city: r.to_city })), msgs, rooms[0] ? { route_id: rooms[0].id, route_number: rooms[0].route_number, from_city: rooms[0].from_city, to_city: rooms[0].to_city } : null);
+    scrollChatToBottom();
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1131,13 +1133,36 @@ function buildChatUI(rooms, msgs, active) {
           <div class="text-xs text-muted">Passengers, Driver, Guardians</div>
         </div>
       </div>
-      <div class="chat-messages" id="chat-messages">${msgs.map(buildMsgBubble).join('')}</div>
+      <div class="chat-messages" id="chat-messages">${buildMsgsWithDates(msgs)}</div>
       <div class="chat-input-row">
         <textarea class="chat-input" id="chat-input" rows="1" placeholder="Message..." onkeypress="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="btn btn-gold" onclick="sendMsg()">Send</button>
       </div>
     </div>
   </div>`;
+}
+
+function fmtMsgDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function fmtDateHeader(d) {
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+function buildMsgsWithDates(msgs) {
+  let lastDate = null;
+  const parts = [];
+  for (const m of msgs) {
+    const d = new Date(m.sent_at);
+    const dateKey = fmtMsgDate(d);
+    if (dateKey !== lastDate) {
+      parts.push(`<div class="chat-date-sep"><span>${fmtDateHeader(d)}</span></div>`);
+      lastDate = dateKey;
+    }
+    parts.push(buildMsgBubble(m));
+  }
+  return parts.join('');
 }
 
 function buildMsgBubble(m) {
@@ -1154,8 +1179,31 @@ function buildMsgBubble(m) {
 function appendChatMsg(msg) {
   const body = document.getElementById('chat-messages');
   if (!body || msg.route_id !== S.chatRoute) return;
+  const prevDate = body.querySelector('.chat-date-sep:last-child');
+  const msgDate = fmtMsgDate(new Date(msg.sent_at));
+  let lastDateKey = '';
+  if (prevDate) {
+    const prevText = prevDate.querySelector('span')?.textContent || '';
+    const parsed = new Date(prevText);
+    if (!isNaN(parsed.getTime())) lastDateKey = fmtMsgDate(parsed);
+  } else {
+    const firstMsg = body.querySelector('.chat-msg');
+    if (firstMsg && body.previousElementSibling?.classList.contains('chat-date-sep')) {
+      const t = body.previousElementSibling.querySelector('span')?.textContent || '';
+      const parsed = new Date(t);
+      if (!isNaN(parsed.getTime())) lastDateKey = fmtMsgDate(parsed);
+    }
+  }
+  if (msgDate !== lastDateKey) {
+    body.innerHTML += `<div class="chat-date-sep"><span>${fmtDateHeader(new Date(msg.sent_at))}</span></div>`;
+  }
   body.innerHTML += buildMsgBubble(msg);
   body.scrollTop = body.scrollHeight;
+}
+
+function scrollChatToBottom() {
+  const body = document.getElementById('chat-messages');
+  if (body) setTimeout(() => body.scrollTop = body.scrollHeight, 50);
 }
 
 async function sendMsg() {
@@ -1184,7 +1232,7 @@ async function switchChatRoom(routeId, num, from, to, el) {
   try {
     const msgs = await api('GET', `/messages/${routeId}`);
     const body = document.getElementById('chat-messages');
-    if (body) { body.innerHTML = msgs.map(buildMsgBubble).join(''); body.scrollTop = body.scrollHeight; }
+    if (body) { body.innerHTML = buildMsgsWithDates(msgs); setTimeout(() => body.scrollTop = body.scrollHeight, 50); }
   } catch (e) { toast(e.message, 'error'); }
 }
 
