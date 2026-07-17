@@ -1552,6 +1552,7 @@ function buildCreateStep() {
     <div class="text-sm text-muted mb-12" style="margin-bottom:12px">Stops = bus physically stops. Checkpoints = cities that notify guardians (bus passes through but doesn't stop).</div>
     <div id="create-stops-list">${(d.stops || []).map((s, i) => buildStopRow(s, i)).join('')}</div>
     <button class="btn btn-outline-gold btn-sm" onclick="addStopRow('stop')">+ Add Stop</button>
+    <div id="stop-duration-note" style="font-size:.78rem;color:var(--gray-600);margin-top:8px"></div>
     <hr class="divider">
     <div class="section-title">Checkpoints <button class="help-icon ml-4" onclick="showHelp('checkpoint')" style="margin-left:6px">?</button></div>
     <div id="create-cp-list">${(d.checkpoints || []).map((s, i) => buildStopRow(s, i, true)).join('')}</div>
@@ -1587,12 +1588,55 @@ function buildCreateStep() {
 }
 
 function buildStopRow(s, i, isCheckpoint = false) {
-  return `<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" id="${isCheckpoint ? 'cp' : 'stop'}-row-${i}">
-    <input class="form-input" style="flex:1;color:var(--navy-dark);background:var(--gray-100)" placeholder="${isCheckpoint ? 'Checkpoint city, TX' : 'Stop city, TX'}" value="${s.city || ''}">
-    <input class="form-input" style="flex:1;color:var(--navy-dark);background:var(--gray-100)" placeholder="${isCheckpoint ? 'Address (optional)' : '123 Main St, Houston, TX'}" value="${s.address || ''}">
-    <input class="form-input" type="time" style="width:110px;color:var(--navy-dark);background:var(--gray-100)" placeholder="Time" value="${s.time || ''}">
-    <button class="btn btn-danger btn-sm" onclick="removeStopRow(this)">✕</button>
+  const prefix = isCheckpoint ? 'cp' : 'stop';
+  const cityLabel = isCheckpoint ? 'Checkpoint City:' : 'Stop City:';
+  const addrLabel = isCheckpoint ? 'Checkpoint Address:' : 'Stop Address:';
+  const cityPlaceholder = isCheckpoint ? 'Checkpoint city, TX' : 'Stop city, TX';
+  const addrPlaceholder = isCheckpoint ? 'Address (optional)' : '123 Main St, Houston, TX';
+  const cityId = `${prefix}-city-${i}`;
+  const ddId = `${prefix}-city-dd-${i}`;
+  const addrId = `${prefix}-addr-${i}`;
+  const statusId = `${prefix}-addr-status-${i}`;
+  return `<div style="display:flex;gap:8px;margin-bottom:8px;align-items:flex-start" id="${prefix}-row-${i}">
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:.75rem;font-weight:600;color:var(--navy)">${cityLabel}</label>
+      <div style="position:relative">
+        <input class="form-input" id="${cityId}" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" placeholder="${cityPlaceholder}" value="${s.city || ''}" oninput="${isCheckpoint ? `autocityCheckpoint(this,'${ddId}')` : `autocityCreate(this,'${ddId}')`}">
+        <div class="city-dropdown" id="${ddId}"></div>
+      </div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:.75rem;font-weight:600;color:var(--navy)">${addrLabel}</label>
+      <div style="display:flex;gap:4px;align-items:center">
+        <input class="form-input" id="${addrId}" style="flex:1;color:var(--navy-dark);background:var(--gray-100)" placeholder="${addrPlaceholder}" value="${s.address || ''}">
+        <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy);padding:7px 10px;flex-shrink:0;font-size:.75rem" onclick="verifyAddress('${addrId}','${statusId}')">Verify</button>
+        <span id="${statusId}" style="font-size:.9rem;width:18px;text-align:center"></span>
+      </div>
+    </div>
+    <div style="width:110px;display:flex;flex-direction:column;gap:4px">
+      <label style="font-size:.75rem;font-weight:600;color:var(--navy)">Time:</label>
+      <input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}">
+    </div>
+    <button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="removeStopRow(this)">✕</button>
   </div>`;
+}
+
+async function verifyAddress(inputId, statusId) {
+  const input = document.getElementById(inputId);
+  const status = document.getElementById(statusId);
+  if (!input || !status) return;
+  const addr = input.value.trim();
+  if (!addr) { status.textContent = ''; return; }
+  status.textContent = '⏳';
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json`);
+    const data = await res.json();
+    status.textContent = data && data.length > 0 ? '✓' : '✗';
+    status.style.color = data && data.length > 0 ? 'var(--success)' : 'var(--error)';
+  } catch {
+    status.textContent = '✗';
+    status.style.color = 'var(--error)';
+  }
 }
 
 function recalcStopTimes() {
@@ -1627,11 +1671,42 @@ function addStopRow(type) {
   div.innerHTML = buildStopRow({}, i, type === 'checkpoint');
   container.appendChild(div.firstElementChild);
   recalcStopTimes();
+  recalcStopDuration();
 }
 
 function removeStopRow(btn) {
   btn.parentElement.remove();
   recalcStopTimes();
+  recalcStopDuration();
+}
+
+function recalcStopDuration() {
+  const stopRows = document.querySelectorAll('#create-stops-list > div');
+  const stopCount = stopRows.length;
+  const extraMin = stopCount * 15;
+  const durEl = document.getElementById('cr-duration');
+  const arrEl = document.getElementById('cr-arr-time');
+  const depEl = document.getElementById('cr-dep-time');
+  if (!durEl || !arrEl || !depEl) return;
+  const baseDuration = S.createData.duration || durEl.value;
+  let baseMin = 0;
+  const m = baseDuration.match(/(\d+)h\s*(\d+)?m?/);
+  if (m) baseMin = parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
+  const depParts = depEl.value.split(':').map(Number);
+  if (baseMin > 0 && depParts.length === 2) {
+    const newTotal = baseMin + extraMin;
+    const h = Math.floor(newTotal / 60);
+    const m2 = newTotal % 60;
+    durEl.value = `${h}h ${m2}m`;
+    const arrDate = new Date(2000, 0, 1, depParts[0], depParts[1] + newTotal);
+    arrEl.value = `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`;
+  }
+  const note = document.getElementById('stop-duration-note');
+  if (note) {
+    note.textContent = stopCount > 0
+      ? `Each stop adds ~15 min to your route duration. Current added time: ${extraMin} min (${stopCount} stop${stopCount > 1 ? 's' : ''}).`
+      : '';
+  }
 }
 
 function collectCreateData() {
@@ -1654,6 +1729,10 @@ function collectCreateData() {
       const inputs = row.querySelectorAll('input');
       return { city: inputs[0]?.value, address: inputs[1]?.value, time: inputs[2]?.value, type: 'checkpoint' };
     }).filter(s => s.city);
+    const durEl = document.getElementById('cr-duration');
+    if (durEl) S.createData.duration = durEl.value;
+    const arrEl = document.getElementById('cr-arr-time');
+    if (arrEl) S.createData.arrival_time = arrEl.value;
   }
   if (S.createStep === 3) {
     S.createData.total_seats = parseInt(document.getElementById('cr-seats')?.value) || 44;
@@ -1683,7 +1762,7 @@ function createNext() {
   }
   S.createStep = Math.min(4, S.createStep + 1);
   renderCreateRoute();
-  if (S.createStep === 2) setTimeout(recalcStopTimes, 50);
+  if (S.createStep === 2) setTimeout(() => { recalcStopTimes(); recalcStopDuration(); fetchSuggestedCheckpoints(); }, 50);
 }
 function createBack() {
   collectCreateData();
@@ -2276,6 +2355,38 @@ function autocityCreate(input, ddId) {
   const matches = CITIES.filter(c => c.n.toLowerCase().includes(q)).slice(0, 6);
   dd.innerHTML = matches.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
   dd.classList.add('open');
+}
+
+function autocityCheckpoint(input, ddId) {
+  const q = input.value.toLowerCase();
+  const dd = document.getElementById(ddId);
+  if (!dd) return;
+  if (!q) { dd.classList.remove('open'); return; }
+  const suggested = S.suggestedCheckpoints || [];
+  let pool = CITIES;
+  if (suggested.length > 0) {
+    const sugSet = new Set(suggested.map(s => s.replace(/, ?TX$/, '').trim().toLowerCase()));
+    pool = CITIES.filter(c => sugSet.has(c.n.toLowerCase()));
+  }
+  const matches = pool.filter(c => c.n.toLowerCase().includes(q)).slice(0, 6);
+  if (!matches.length) { dd.classList.remove('open'); return; }
+  dd.innerHTML = matches.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
+  dd.classList.add('open');
+}
+
+async function fetchSuggestedCheckpoints() {
+  const from = S.createData.from_city;
+  const to = S.createData.to_city;
+  if (!from || !to) return;
+  const fromCoords = CITY_COORDS[stripCityState(from)];
+  const toCoords = CITY_COORDS[stripCityState(to)];
+  if (!fromCoords || !toCoords) return;
+  try {
+    const data = await api('GET', `/routes/suggest-checkpoints?from_lat=${fromCoords.lat}&from_lon=${fromCoords.lon}&to_lat=${toCoords.lat}&to_lon=${toCoords.lon}`, null, false);
+    S.suggestedCheckpoints = Array.isArray(data) ? data : [];
+  } catch {
+    S.suggestedCheckpoints = [];
+  }
 }
 
 function isValidCity(val) {

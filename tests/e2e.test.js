@@ -588,7 +588,7 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Step 2: Stops & Checkpoints
     await expect(driver.getByText('Stops & Checkpoints')).toBeVisible({ timeout: 3000 });
-    // Add a stop and verify city + address + time inputs exist
+    // Add a stop and verify labels, verify button, and duration note
     const addStopBtn = driver.locator('button', { hasText: '+ Add Stop' });
     await expect(addStopBtn).toBeVisible({ timeout: 3000 });
     await addStopBtn.click();
@@ -600,6 +600,19 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await expect(stopRow.locator('input').nth(0)).toHaveAttribute('placeholder', /Stop city/);
     await expect(stopRow.locator('input').nth(1)).toHaveAttribute('placeholder', /123 Main St/);
     await expect(stopRow.locator('input').nth(2)).toHaveAttribute('type', 'time');
+    // Verify labels
+    await expect(stopRow.locator('label').first()).toHaveText('Stop City:');
+    await expect(stopRow.locator('label').nth(1)).toHaveText('Stop Address:');
+    await expect(stopRow.locator('label').nth(2)).toHaveText('Time:');
+    // Verify address verify button
+    await expect(stopRow.locator('button', { hasText: 'Verify' })).toBeVisible({ timeout: 3000 });
+    // Verify duration note updates when adding stops
+    await expect(driver.locator('#stop-duration-note')).toBeVisible({ timeout: 3000 });
+    await expect(driver.locator('#stop-duration-note')).toContainText('15 min (1 stop)');
+    // Add another stop and verify duration note updates
+    await addStopBtn.click();
+    await page.waitForTimeout(200);
+    await expect(driver.locator('#stop-duration-note')).toContainText('30 min (2 stops)');
     await driver.locator('button', { hasText: 'Next: Seats' }).click();
 
     // Step 3: Seats & Pricing

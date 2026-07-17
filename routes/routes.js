@@ -5,6 +5,85 @@ const { all, get, run } = require('../db/database');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const { sendEmail, guardianCheckpointHTML } = require('../utils/email');
 
+const ROUTE_CITIES = [
+  { name: 'College Station', lat: 30.628, lon: -96.334 },
+  { name: 'Houston', lat: 29.760, lon: -95.370 },
+  { name: 'Austin', lat: 30.267, lon: -97.743 },
+  { name: 'Dallas', lat: 32.776, lon: -96.797 },
+  { name: 'San Antonio', lat: 29.425, lon: -98.494 },
+  { name: 'Lubbock', lat: 33.578, lon: -101.856 },
+  { name: 'Waco', lat: 31.549, lon: -97.147 },
+  { name: 'Bryan', lat: 30.674, lon: -96.370 },
+  { name: 'Frisco', lat: 33.150, lon: -96.823 },
+  { name: 'Plano', lat: 33.020, lon: -96.699 },
+  { name: 'McKinney', lat: 33.197, lon: -96.640 },
+  { name: 'Allen', lat: 33.103, lon: -96.670 },
+  { name: 'Denton', lat: 33.215, lon: -97.133 },
+  { name: 'Fort Worth', lat: 32.755, lon: -97.333 },
+  { name: 'Arlington', lat: 32.736, lon: -97.108 },
+  { name: 'Garland', lat: 32.913, lon: -96.639 },
+  { name: 'Irving', lat: 32.814, lon: -96.949 },
+  { name: 'Round Rock', lat: 30.508, lon: -97.679 },
+  { name: 'The Woodlands', lat: 30.158, lon: -95.470 },
+  { name: 'Sugar Land', lat: 29.619, lon: -95.635 },
+  { name: 'Conroe', lat: 30.312, lon: -95.456 },
+  { name: 'Huntsville', lat: 30.724, lon: -95.551 },
+  { name: 'Temple', lat: 31.098, lon: -97.343 },
+  { name: 'Killeen', lat: 31.117, lon: -97.728 },
+  { name: 'Galveston', lat: 29.301, lon: -94.798 },
+  { name: 'Corpus Christi', lat: 27.801, lon: -97.396 },
+  { name: 'San Marcos', lat: 29.883, lon: -97.940 },
+  { name: 'Pearland', lat: 29.564, lon: -95.286 },
+  { name: 'Pflugerville', lat: 30.439, lon: -97.620 },
+  { name: 'Georgetown', lat: 30.633, lon: -97.677 },
+  { name: 'Bedford', lat: 32.844, lon: -97.143 },
+  { name: 'Carrollton', lat: 32.976, lon: -96.890 },
+  { name: 'Cedar Hill', lat: 32.589, lon: -96.956 },
+  { name: 'Coppell', lat: 32.955, lon: -97.015 },
+  { name: 'Euless', lat: 32.837, lon: -97.082 },
+  { name: 'Flower Mound', lat: 33.015, lon: -97.097 },
+  { name: 'Grand Prairie', lat: 32.746, lon: -97.003 },
+  { name: 'Grapevine', lat: 32.934, lon: -97.078 },
+  { name: 'Lewisville', lat: 33.046, lon: -96.994 },
+  { name: 'Mesquite', lat: 32.767, lon: -96.599 },
+  { name: 'Richardson', lat: 32.948, lon: -96.729 },
+  { name: 'Rockwall', lat: 32.931, lon: -96.459 },
+  { name: 'Rowlett', lat: 32.903, lon: -96.564 },
+];
+
+function toRad(deg) { return deg * Math.PI / 180; }
+
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function minDistanceToRoute(lat, lon, points) {
+  let min = Infinity;
+  for (const p of points) {
+    const d = haversineKm(lat, lon, p.lat, p.lon);
+    if (d < min) min = d;
+  }
+  return min;
+}
+
+function suggestCitiesByLine(fromLat, fromLon, toLat, toLon) {
+  const midLat = (parseFloat(fromLat) + parseFloat(toLat)) / 2;
+  const midLon = (parseFloat(fromLon) + parseFloat(toLon)) / 2;
+  return ROUTE_CITIES
+    .filter(c => {
+      const d1 = haversineKm(c.lat, c.lon, parseFloat(fromLat), parseFloat(fromLon));
+      const d2 = haversineKm(c.lat, c.lon, parseFloat(toLat), parseFloat(toLon));
+      const dMid = haversineKm(c.lat, c.lon, midLat, midLon);
+      return dMid < d1 && dMid < d2 && dMid <= 80;
+    })
+    .map(c => `${c.name}, TX`);
+}
+
 async function enrichRoute(r) {
   if (!r) return null;
   const stops  = await all('SELECT * FROM route_stops WHERE route_id=$1 ORDER BY order_index', [r.id]);
@@ -53,6 +132,43 @@ router.get('/driver/mine', authMiddleware, requireRole('driver'), async (req, re
     const routes = await all('SELECT * FROM routes WHERE driver_id=$1 ORDER BY departure_date DESC', [req.user.id]);
     res.json(await Promise.all(routes.map(enrichRoute)));
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/routes/suggest-checkpoints
+router.get('/suggest-checkpoints', async (req, res) => {
+  try {
+    const { from_lat, from_lon, to_lat, to_lon } = req.query;
+    if (!from_lat || !from_lon || !to_lat || !to_lon) {
+      return res.status(400).json({ error: 'Missing coordinates' });
+    }
+    const apiKey = process.env.ORS_API_KEY;
+    if (apiKey) {
+      try {
+        const orsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${from_lon},${from_lat}&end=${to_lon},${to_lat}`;
+        const orsRes = await fetch(orsUrl);
+        if (orsRes.ok) {
+          const orsData = await orsRes.json();
+          const coords = orsData?.features?.[0]?.geometry?.coordinates || [];
+          if (coords.length > 0) {
+            const step = Math.max(1, Math.floor(coords.length / 50));
+            const routePoints = [];
+            for (let i = 0; i < coords.length; i += step) {
+              routePoints.push({ lat: coords[i][1], lon: coords[i][0] });
+            }
+            const suggestions = ROUTE_CITIES
+              .filter(c => minDistanceToRoute(c.lat, c.lon, routePoints) <= 16.1)
+              .map(c => `${c.name}, TX`);
+            return res.json(suggestions);
+          }
+        }
+      } catch (orsErr) {
+        console.log('[SUGGEST_CHECKPOINTS] ORS error:', orsErr.message);
+      }
+    }
+    return res.json(suggestCitiesByLine(from_lat, from_lon, to_lat, to_lon));
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // GET /api/routes/:id
