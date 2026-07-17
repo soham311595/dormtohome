@@ -630,21 +630,41 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await driver.locator('[data-tab="routes"]').click();
     await waitForSpinner();
 
-    // Requests tab — test sorting
+    // Requests tab — test filters
     await driver.locator('[data-tab="requested"]').click();
     await waitForSpinner();
     await expect(driver.getByText('Passenger Requests')).toBeVisible({ timeout: 5000 });
+    // Verify auto-sort popularity text
+    await expect(driver.getByText('Automatically Sorted by Popularity')).toBeVisible({ timeout: 3000 });
+    // Verify filter buttons exist (not Most Supporters)
+    await expect(driver.locator('.filter-chip', { hasText: 'Departure City' })).toBeVisible({ timeout: 3000 });
+    await expect(driver.locator('.filter-chip', { hasText: 'Arrival City' })).toBeVisible({ timeout: 3000 });
+    await expect(driver.locator('.filter-chip', { hasText: 'Most Supporters' })).not.toBeVisible({ timeout: 3000 });
     const hasRequests = await driver.locator('.card-sm').first().isVisible().catch(() => false);
     if (hasRequests) {
-      await expect(driver.locator('.card-sm').first()).toBeVisible({ timeout: 5000 });
-      // Test sort by Departure
-      await driver.locator('.filter-chip', { hasText: 'Departure' }).click();
+      const countBefore = await driver.locator('.card-sm').count();
+      // Apply a departure filter to verify it reduces results
+      await driver.locator('.filter-chip', { hasText: 'Departure City' }).click();
+      await page.waitForTimeout(500);
+      const searchInput = driver.locator('#fp-body input').first();
+      if (await searchInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await searchInput.fill('College Station');
+        await page.waitForTimeout(300);
+        const cityItem = driver.locator('#fp-cities .city-item').first();
+        if (await cityItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await cityItem.click();
+        }
+        await driver.locator('button', { hasText: 'Apply' }).click();
+        await page.waitForTimeout(300);
+      }
+      const countAfter = await driver.locator('.card-sm').count();
+      expect(countAfter).toBeLessThanOrEqual(countBefore);
+      // Verify clear filters button appears
+      await expect(driver.locator('#clear-request-filters')).toBeVisible({ timeout: 3000 });
+      // Clear filters
+      await driver.locator('#clear-request-filters').click();
       await page.waitForTimeout(300);
-      const cardsAfterSort = await driver.locator('.card-sm').count();
-      expect(cardsAfterSort).toBeGreaterThan(0);
-      // Switch back to Most Supporters
-      await driver.locator('.filter-chip', { hasText: 'Most Supporters' }).click();
-      await page.waitForTimeout(300);
+      await expect(driver.locator('#clear-request-filters')).not.toBeVisible({ timeout: 3000 });
     }
 
     // Messages tab (driver)

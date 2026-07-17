@@ -2244,13 +2244,7 @@ async function renderRequested() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-let requestsSort = 'supporters';
 let requestsFilters = { departures: [], arrivals: [], dateFrom: '', dateTo: '' };
-
-function sortRequests(field) {
-  requestsSort = field;
-  renderRequested();
-}
 
 function openRequestFilter(type) {
   savedFilters.departures = [...requestsFilters.departures];
@@ -2298,25 +2292,24 @@ function buildRequestedPage(reqs) {
     filtered = filtered.filter(r => r.requested_date && r.requested_date <= requestsFilters.dateTo);
   }
   const hasFilters = requestsFilters.departures.length || requestsFilters.arrivals.length || requestsFilters.dateFrom || requestsFilters.dateTo;
+  const sorted = [...filtered].sort((a, b) => b.supporter_count - a.supporter_count);
   let html = `
   <div class="page-header"><div><div class="page-title">Passenger Requests</div><div class="page-sub">Routes requested by passengers</div></div></div>
   <div class="filter-bar">
-    <span class="filter-label">${hasFilters ? 'Filtered:' : 'Sort:'}</span>
-    <div class="filter-chip${!hasFilters && requestsSort === 'supporters' ? ' active' : ''}" onclick="sortRequests('supporters')">Most Supporters</div>
-    <div class="filter-chip${requestsFilters.departures.length ? ' active' : ''}" onclick="openRequestFilter('departure')">Departure${requestsFilters.departures.length ? ` (${requestsFilters.departures.length})` : ''}</div>
-    <div class="filter-chip${requestsFilters.arrivals.length ? ' active' : ''}" onclick="openRequestFilter('arrival')">Arrival${requestsFilters.arrivals.length ? ` (${requestsFilters.arrivals.length})` : ''}</div>
+    <span class="filter-label">Filter:</span>
+    <div class="filter-chip${requestsFilters.departures.length ? ' active' : ''}" onclick="openRequestFilter('departure')">Departure City${requestsFilters.departures.length ? ` (${requestsFilters.departures.length})` : ''}</div>
+    <div class="filter-chip${requestsFilters.arrivals.length ? ' active' : ''}" onclick="openRequestFilter('arrival')">Arrival City${requestsFilters.arrivals.length ? ` (${requestsFilters.arrivals.length})` : ''}</div>
     <div class="filter-chip${requestsFilters.dateFrom || requestsFilters.dateTo ? ' active' : ''}" onclick="openRequestFilter('date')">Date${requestsFilters.dateFrom || requestsFilters.dateTo ? ' ✓' : ''}</div>
-    ${hasFilters ? '<div class="filter-chip" id="clear-request-filters" style="background:var(--error);color:white;border-color:var(--error);cursor:pointer" onclick="clearRequestFilters()">✕ Clear All</div>' : ''}
+    ${hasFilters ? '<div class="filter-chip" id="clear-request-filters" style="background:var(--error);color:white;border-color:var(--error);cursor:pointer" onclick="clearRequestFilters()">✕ Clear All Filters</div>' : ''}
   </div>
-  <div style="display:flex;flex-direction:column;gap:12px">`;
-  let sorted;
-  if (requestsSort === 'departure') sorted = [...filtered].sort((a, b) => String(a.from_city).localeCompare(String(b.from_city)));
-  else if (requestsSort === 'arrival') sorted = [...filtered].sort((a, b) => String(a.to_city).localeCompare(String(b.to_city)));
-  else if (requestsSort === 'date') sorted = [...filtered].sort((a, b) => (a.requested_date || '').localeCompare(b.requested_date || ''));
-  else sorted = [...filtered].sort((a, b) => b.supporter_count - a.supporter_count);
-  sorted.forEach(r => {
-    const pct = Math.min(100, Math.round(r.supporter_count / 25 * 100));
-    html += `
+  <div style="font-size:.75rem;color:var(--gray-400);margin-bottom:12px">Automatically Sorted by Popularity</div>`;
+  if (sorted.length === 0) {
+    html += `<div style="text-align:center;padding:40px 24px;color:var(--gray-400)"><p style="font-size:.9rem">No route requests match your filters. Try adjusting or clearing your filters.</p></div>`;
+  } else {
+    html += `<div style="display:flex;flex-direction:column;gap:12px">`;
+    sorted.forEach(r => {
+      const pct = Math.min(100, Math.round(r.supporter_count / 25 * 100));
+      html += `
     <div class="card card-sm" style="display:grid;grid-template-columns:1fr 80px auto;gap:16px;align-items:center">
       <div>
         <div style="font-weight:600;color:var(--navy);margin-bottom:4px">${String(r.from_city)} → ${String(r.to_city)}</div>
@@ -2331,9 +2324,10 @@ function buildRequestedPage(reqs) {
         <button class="btn btn-gold btn-sm" data-from="${String(r.from_city)}" data-to="${String(r.to_city)}" data-date="${String(r.requested_date)}" data-time="${String(r.requested_time)}" data-action="accept-req">Accept & Create</button>
       </div>
     </div>`;
-  });
+    });
+    html += `</div>`;
+  }
   html += `
-  </div>
   <div class="card" style="margin-top:24px">
     <div class="section-title">Payment Methods</div>
     <div style="text-align:center;padding:20px;color:var(--gray-400)">
