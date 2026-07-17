@@ -1707,9 +1707,14 @@ function buildStopRow(s, i, isCheckpoint = false) {
         <span id="${statusId}" style="font-size:.9rem;width:18px;text-align:center"></span>
       </div>
     </div>
-      <div style="width:110px;display:flex;flex-direction:column;gap:4px">
+      <div style="width:160px;display:flex;flex-direction:column;gap:4px">
         <label style="font-size:.75rem;font-weight:600;color:var(--navy)">Time:</label>
-        <input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}" data-prev-time="${s.time || ''}" oninput="onStopTimeChange(this)">
+        ${isCheckpoint
+          ? `<input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}" data-prev-time="${s.time || ''}" oninput="onStopTimeChange(this)">`
+          : `<div style="display:flex;gap:4px;align-items:center">
+               <input class="form-input" type="time" style="flex:1;color:var(--navy-dark);background:var(--gray-100);cursor:default" value="${s.time || ''}" readonly>
+               <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy);padding:7px 8px;flex-shrink:0;font-size:.7rem" onclick="editStopTime(this)">Edit</button>
+             </div>`}
       </div>
     <button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="removeStopRow(this)">✕</button>
   </div>`;
@@ -1805,8 +1810,8 @@ function onStopTimeChange(input) {
     if (durEl) durEl.value = durStr;
 
     input.dataset.prevTime = newTime;
-    recalcStopTimes();
     recalcStopDuration();
+    recalcStopTimes();
   } else {
     input.value = oldTime;
   }
@@ -1819,20 +1824,43 @@ function addStopRow(type) {
   const i = container.children.length;
   div.innerHTML = buildStopRow({}, i, type === 'checkpoint');
   container.appendChild(div.firstElementChild);
-  recalcStopTimes();
   recalcStopDuration();
+  recalcStopTimes();
 }
 
 function removeStopRow(btn) {
   btn.parentElement.remove();
-  recalcStopTimes();
   recalcStopDuration();
+  recalcStopTimes();
+}
+
+function editStopTime(btn) {
+  const container = btn.parentElement;
+  const input = container.querySelector('input[type="time"]');
+  if (!input) return;
+  const oldTime = input.value;
+  const msg = 'Changing a stop time may alter the departure and final stop arrival times on the route. Continue?';
+  if (confirm(msg)) {
+    input.readOnly = false;
+    input.focus();
+    const commit = function() {
+      if (input.value !== oldTime) {
+        input.dataset.prevTime = oldTime;
+        onStopTimeChange(input);
+      }
+      input.readOnly = true;
+      input.removeEventListener('change', commit);
+      input.removeEventListener('blur', commit);
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('blur', commit);
+  }
 }
 
 function recalcStopDuration() {
   const stopRows = document.querySelectorAll('#create-stops-list > div');
   const stopCount = stopRows.length;
-  const extraMin = stopCount * 15;
+  const allRows = document.querySelectorAll('#create-stops-list > div, #create-cp-list > div');
   const note = document.getElementById('stop-duration-note');
   if (!note) return;
   const baseDuration = S.createData.duration;
@@ -1841,20 +1869,47 @@ function recalcStopDuration() {
     const m = baseDuration.match(/(\d+)h\s*(\d+)?m?/);
     if (m) baseMin = parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
   }
-  if (baseMin > 0) {
-    const newTotal = baseMin + extraMin;
-    const h = Math.floor(newTotal / 60);
-    const m2 = newTotal % 60;
-    S.createData.duration = `${h}h ${m2}m`;
-    const depTime = S.createData.departure_time || '08:00';
-    const depParts = depTime.split(':').map(Number);
-    if (depParts.length === 2) {
-      const arrDate = new Date(2000, 0, 1, depParts[0], depParts[1] + newTotal);
-      S.createData.arrival_time = `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`;
+  if (baseMin <= 0) return;
+
+  let detourMin = 0;
+  const cities = Array.from(allRows).map(row => row.querySelector('input')?.value).filter(Boolean);
+  if (cities.length > 0) {
+    const from = S.createData.from_city;
+    const to = S.createData.to_city;
+    if (from && to) {
+      const direct = estimateTravelTime(from, to);
+      const directMin = direct.hours * 60 + direct.minutes;
+      let totalWaypointMin = 0;
+      let prev = from;
+      for (const city of cities) {
+        const tt = estimateTravelTime(prev, city);
+        totalWaypointMin += tt.hours * 60 + tt.minutes;
+        prev = city;
+      }
+      const last = estimateTravelTime(prev, to);
+      totalWaypointMin += last.hours * 60 + last.minutes;
+      detourMin = Math.max(0, totalWaypointMin - directMin);
     }
   }
+
+  const extraMin = stopCount * 15 + Math.round(detourMin);
+  const newTotal = baseMin + extraMin;
+  const h = Math.floor(newTotal / 60);
+  const m2 = newTotal % 60;
+  S.createData.duration = `${h}h ${m2}m`;
+  const depTime = S.createData.departure_time || '08:00';
+  const depParts = depTime.split(':').map(Number);
+  if (depParts.length === 2) {
+    const arrDate = new Date(2000, 0, 1, depParts[0], depParts[1] + newTotal);
+    S.createData.arrival_time = `${String(arrDate.getHours()).padStart(2, '0')}:${String(arrDate.getMinutes()).padStart(2, '0')}`;
+  }
+  const durEl = document.getElementById('cr-duration');
+  if (durEl) durEl.value = S.createData.duration;
+  const arrEl = document.getElementById('cr-arr-time');
+  if (arrEl) arrEl.value = S.createData.arrival_time;
+
   note.textContent = stopCount > 0
-    ? `Each stop adds ~15 min to your route duration. Current added time: ${extraMin} min (${stopCount} stop${stopCount > 1 ? 's' : ''}).`
+    ? `Stop time: ${stopCount * 15} min. Detour: ~${Math.round(detourMin)} min. Total added: ${extraMin} min.`
     : '';
 }
 
@@ -1921,7 +1976,7 @@ function createNext() {
   }
   S.createStep = Math.min(4, S.createStep + 1);
   renderCreateRoute();
-  if (S.createStep === 2) setTimeout(() => { recalcStopTimes(); recalcStopDuration(); fetchSuggestedCheckpoints(); }, 50);
+  if (S.createStep === 2) setTimeout(() => { recalcStopDuration(); recalcStopTimes(); fetchSuggestedCheckpoints(); }, 50);
 }
 function createBack() {
   collectCreateData();
