@@ -1840,13 +1840,56 @@ function editStopTime(btn) {
   const input = row.querySelector('input[type="time"]');
   if (!input) return;
   const oldTime = input.value;
-  const msg = 'Changing a stop time may alter the departure and final stop arrival times on the route. Continue?';
-  if (!confirm(msg)) return;
-  const newTime = prompt('Enter the new time for this stop (HH:MM):', oldTime);
-  if (!newTime || !/^\d{2}:\d{2}$/.test(newTime)) return;
-  input.value = newTime;
-  input.dataset.prevTime = oldTime;
-  onStopTimeChange(input);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.style.display = 'flex';
+  overlay.id = 'modal-stop-time';
+
+  function closeModal() { overlay.remove(); }
+
+  function showTimeInput() {
+    document.getElementById('st-body').innerHTML = `
+      <p style="color:var(--gray-600);font-size:.9rem;margin-bottom:12px">Enter the new time for this stop:</p>
+      <input type="time" id="st-new-time" class="form-input" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${oldTime}">
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+        <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" id="st-cancel-2">Cancel</button>
+        <button class="btn btn-gold btn-sm" id="st-confirm-btn">Confirm</button>
+      </div>`;
+    document.getElementById('st-cancel-2').onclick = closeModal;
+    document.getElementById('st-confirm-btn').onclick = function() {
+      const newTime = document.getElementById('st-new-time').value;
+      if (newTime) {
+        input.value = newTime;
+        input.dataset.prevTime = oldTime;
+        onStopTimeChange(input);
+      }
+      closeModal();
+    };
+  }
+
+  overlay.innerHTML = `
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <div class="modal-title">Edit Stop Time</div>
+        <button class="modal-close" id="st-close">✕</button>
+      </div>
+      <div class="modal-body" id="st-body">
+        <p style="color:var(--gray-600);font-size:.9rem;line-height:1.6;margin-bottom:16px">
+          Changing a stop time may alter the departure and final stop arrival times on the route. Continue?
+        </p>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" id="st-cancel-1">Cancel</button>
+          <button class="btn btn-gold btn-sm" id="st-continue-btn">Continue</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.onclick = function(e) { if (e.target === overlay) closeModal(); };
+  document.getElementById('st-close').onclick = closeModal;
+  document.getElementById('st-cancel-1').onclick = closeModal;
+  document.getElementById('st-continue-btn').onclick = showTimeInput;
 }
 
 function recalcStopDuration() {
