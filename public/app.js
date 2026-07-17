@@ -1636,7 +1636,7 @@ function buildCreateStep() {
     </div>
     <div class="two-col">
       <div class="form-group"><label class="form-label" style="color:var(--navy)">Arrival Time</label><input class="form-input" type="time" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-arr-time" value="${d.arrival_time || crArrDefault}"></div>
-      <div class="form-group"><label class="form-label" style="color:var(--navy)">Est. Duration</label><input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-duration" placeholder="3h 30m" value="${d.duration || crDurDefault}"></div>
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Est. Duration</label><input class="form-input" style="color:var(--gray-400);background:var(--gray-100);cursor:not-allowed" id="cr-duration" placeholder="3h 30m" value="${d.duration || crDurDefault}" readonly></div>
     </div>
     <button class="btn btn-gold mt-12" style="margin-top:12px" onclick="createNext()">Next: Stops →</button>`;
   }
