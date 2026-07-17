@@ -1659,7 +1659,7 @@ function buildCreateStep() {
     <div class="section-title">Seats & Pricing</div>
     <div class="two-col">
       <div class="form-group"><label class="form-label" style="color:var(--navy)">Total Seats</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-seats" placeholder="44" value="${d.total_seats || 44}"></div>
-      <div class="form-group"><label class="form-label" style="color:var(--navy)">Price Per Seat ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-price" placeholder="28" value="${d.price_per_seat || ''}"></div>
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Price Per Seat ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-price" placeholder="28" value="${d.price_per_seat || ''}"><div class="text-xs text-danger" id="cr-price-err"></div></div>
     </div>
     <div class="form-group"><label class="form-label" style="color:var(--navy)">Package Delivery Price ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-pkg" placeholder="15" value="${d.package_price || 15}"></div>
     <div class="form-group"><label class="form-label" style="color:var(--navy)">Notes for Passengers</label><textarea class="form-input" rows="3" style="color:var(--navy-dark);background:var(--gray-100);resize:vertical" id="cr-notes" placeholder="Any extra info...">${d.notes || ''}</textarea></div>
@@ -1852,6 +1852,16 @@ function createNext() {
       ok = false;
     }
     if (!ok) return;
+  }
+  if (S.createStep === 3) {
+    const price = parseFloat(document.getElementById('cr-price')?.value);
+    const err = document.getElementById('cr-price-err');
+    if (!price || price <= 0) {
+      if (err) err.textContent = 'Please enter a price per seat';
+      return;
+    } else {
+      if (err) err.textContent = '';
+    }
   }
   S.createStep = Math.min(4, S.createStep + 1);
   renderCreateRoute();
@@ -2088,18 +2098,28 @@ async function renderRequested() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+let requestsSort = 'supporters';
+function sortRequests(field) {
+  requestsSort = field;
+  renderRequested();
+}
+
 function buildRequestedPage(reqs) {
   let html = `
   <div class="page-header"><div><div class="page-title">Passenger Requests</div><div class="page-sub">Routes requested by passengers</div></div></div>
   <div class="filter-bar">
     <span class="filter-label">Sort:</span>
-    <div class="filter-chip active">Most Supporters</div>
-    <div class="filter-chip" onclick="openFilterPanel('departure')">Departure</div>
-    <div class="filter-chip" onclick="openFilterPanel('arrival')">Arrival</div>
-    <div class="filter-chip" onclick="openFilterPanel('date')">Date</div>
+    <div class="filter-chip${requestsSort === 'supporters' ? ' active' : ''}" onclick="sortRequests('supporters')">Most Supporters</div>
+    <div class="filter-chip${requestsSort === 'departure' ? ' active' : ''}" onclick="sortRequests('departure')">Departure</div>
+    <div class="filter-chip${requestsSort === 'arrival' ? ' active' : ''}" onclick="sortRequests('arrival')">Arrival</div>
+    <div class="filter-chip${requestsSort === 'date' ? ' active' : ''}" onclick="sortRequests('date')">Date</div>
   </div>
   <div style="display:flex;flex-direction:column;gap:12px">`;
-  const sorted = reqs.sort((a, b) => b.supporter_count - a.supporter_count);
+  let sorted;
+  if (requestsSort === 'departure') sorted = [...reqs].sort((a, b) => String(a.from_city).localeCompare(String(b.from_city)));
+  else if (requestsSort === 'arrival') sorted = [...reqs].sort((a, b) => String(a.to_city).localeCompare(String(b.to_city)));
+  else if (requestsSort === 'date') sorted = [...reqs].sort((a, b) => (a.requested_date || '').localeCompare(b.requested_date || ''));
+  else sorted = [...reqs].sort((a, b) => b.supporter_count - a.supporter_count);
   sorted.forEach(r => {
     const pct = Math.min(100, Math.round(r.supporter_count / 25 * 100));
     html += `
@@ -2115,7 +2135,6 @@ function buildRequestedPage(reqs) {
       </div>
       <div style="display:flex;flex-direction:column;gap:8px">
         <button class="btn btn-gold btn-sm" data-from="${String(r.from_city)}" data-to="${String(r.to_city)}" data-date="${String(r.requested_date)}" data-time="${String(r.requested_time)}" data-action="accept-req">Accept & Create</button>
-        <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)">Decline</button>
       </div>
     </div>`;
   });
