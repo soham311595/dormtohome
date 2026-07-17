@@ -1707,10 +1707,10 @@ function buildStopRow(s, i, isCheckpoint = false) {
         <span id="${statusId}" style="font-size:.9rem;width:18px;text-align:center"></span>
       </div>
     </div>
-    <div style="width:110px;display:flex;flex-direction:column;gap:4px">
-      <label style="font-size:.75rem;font-weight:600;color:var(--navy)">Time:</label>
-      <input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}">
-    </div>
+      <div style="width:110px;display:flex;flex-direction:column;gap:4px">
+        <label style="font-size:.75rem;font-weight:600;color:var(--navy)">Time:</label>
+        <input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}" data-prev-time="${s.time || ''}" oninput="onStopTimeChange(this)">
+      </div>
     <button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="removeStopRow(this)">✕</button>
   </div>`;
 }
@@ -1755,6 +1755,61 @@ function recalcStopTimes() {
       timeInput.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     }
   });
+}
+
+function onStopTimeChange(input) {
+  const newTime = input.value;
+  const oldTime = input.dataset.prevTime || input.defaultValue;
+  if (!newTime || newTime === oldTime) return;
+
+  const msg = 'Changing a stop time may alter the departure and final stop arrival times on the route. Continue?';
+  if (confirm(msg)) {
+    const dep = S.createData.departure_time;
+    const arr = S.createData.arrival_time;
+    if (!dep || !arr) { input.dataset.prevTime = newTime; return; }
+    const [dh, dm] = dep.split(':').map(Number);
+    const [ah, am] = arr.split(':').map(Number);
+    const totalMin = (ah * 60 + am) - (dh * 60 + dm);
+    if (totalMin <= 0) { input.dataset.prevTime = newTime; return; }
+
+    const stopRows = document.querySelectorAll('#create-stops-list > div, #create-cp-list > div');
+    const count = stopRows.length;
+    if (count === 0) { input.dataset.prevTime = newTime; return; }
+    const rowEl = input.closest('[id*="-row-"]');
+    if (!rowEl) { input.dataset.prevTime = newTime; return; }
+    const rowIndex = parseInt(rowEl.id.split('-row-')[1]);
+
+    const segmentMin = totalMin / (count + 1);
+    const [nh, nm] = newTime.split(':').map(Number);
+    const newDepMinutes = (nh * 60 + nm) - Math.round(segmentMin * (rowIndex + 1));
+    const newDepH = (((newDepMinutes % 1440) + 1440) % 1440) / 60 | 0;
+    const newDepM = ((newDepMinutes % 1440) + 1440) % 1440 % 60;
+    const newDep = `${String(newDepH).padStart(2, '0')}:${String(newDepM).padStart(2, '0')}`;
+
+    const newArrMinutes = (newDepH * 60 + newDepM) + totalMin;
+    const newArrH = (((newArrMinutes % 1440) + 1440) % 1440) / 60 | 0;
+    const newArrM = ((newArrMinutes % 1440) + 1440) % 1440 % 60;
+    const newArr = `${String(newArrH).padStart(2, '0')}:${String(newArrM).padStart(2, '0')}`;
+
+    S.createData.departure_time = newDep;
+    S.createData.arrival_time = newArr;
+
+    const depEl = document.getElementById('cr-dep-time');
+    if (depEl) depEl.value = newDep;
+    const arrEl = document.getElementById('cr-arr-time');
+    if (arrEl) arrEl.value = newArr;
+
+    const durStr = `${(totalMin / 60) | 0}h ${totalMin % 60}m`;
+    S.createData.duration = durStr;
+    const durEl = document.getElementById('cr-duration');
+    if (durEl) durEl.value = durStr;
+
+    input.dataset.prevTime = newTime;
+    recalcStopTimes();
+    recalcStopDuration();
+  } else {
+    input.value = oldTime;
+  }
 }
 
 function addStopRow(type) {
