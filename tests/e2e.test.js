@@ -672,6 +672,22 @@ test.describe.serial('DormToHome E2E Tests', () => {
     });
     await expect(page.locator('#simulate-section')).not.toBeVisible({ timeout: 3000 });
 
+    // Check-In tab — two-section manifest page
+    await driver.locator('[data-tab="checkin"]').click();
+    await waitForSpinner();
+    await expect(driver.getByText('Not Checked In')).toBeVisible({ timeout: 5000 });
+    await expect(driver.getByText('Checked In')).toBeVisible({ timeout: 3000 });
+    // If there are pending passengers, simulate a scan to verify row moves between sections
+    const pendingRows = await driver.locator('#manifest-body-pending tr').count().catch(() => 0);
+    if (pendingRows > 0) {
+      await page.locator('#screen-driver [onclick*="simulateScan"]').click();
+      await page.waitForTimeout(500);
+      const pendingRowsAfter = await driver.locator('#manifest-body-pending tr').count().catch(() => 0);
+      const checkedRowsAfter = await driver.locator('#manifest-body-checked tr').count().catch(() => 0);
+      expect(pendingRowsAfter).toBe(pendingRows - 1);
+      expect(checkedRowsAfter).toBeGreaterThan(0);
+    }
+
     // Sign out from driver account
     await driver.locator('[data-tab="dashboard"]').click();
     await waitForSpinner();

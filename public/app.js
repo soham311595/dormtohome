@@ -1908,13 +1908,14 @@ async function renderCheckin() {
 }
 
 function buildCheckinPage(route, manifest) {
-  const checked = manifest.filter(p => p.checkin_status === 'checked').length;
+  const pending = manifest.filter(p => p.checkin_status !== 'checked');
+  const checked = manifest.filter(p => p.checkin_status === 'checked');
   const stops = route.stops || [];
   const nextStop = stops.find(s => s.status === 'upcoming') || stops[stops.length - 1];
   return `
   <div class="page-header">
     <div><div class="page-title">Check-In — ${route.route_number}</div><div class="page-sub">${route.from_city} → ${route.to_city} · ${fmtDate(route.departure_date)}</div></div>
-    <span class="badge badge-green" id="ci-counter">${checked}/${manifest.length} Checked In</span>
+    <span class="badge badge-green" id="ci-counter">${checked.length}/${manifest.length} Checked In</span>
   </div>
   ${nextStop ? `<div class="card card-sm mb-16" style="margin-bottom:16px;background:rgba(201,150,42,.06);border-color:var(--gold)">
     <div style="display:flex;align-items:center;gap:10px">
@@ -1929,15 +1930,21 @@ function buildCheckinPage(route, manifest) {
     <div class="text-sm text-muted mt-4" style="margin-top:4px">Click to simulate a scan</div>
   </div>
   <div style="margin-bottom:12px">
-    <div class="progress-bar"><div class="progress-fill" id="ci-progress" style="width:${manifest.length ? Math.round(checked/manifest.length*100) : 0}%"></div></div>
+    <div class="progress-bar"><div class="progress-fill" id="ci-progress" style="width:${manifest.length ? Math.round(checked.length/manifest.length*100) : 0}%"></div></div>
+  </div>
+  <div class="card mb-16" style="margin-bottom:16px">
+    <div style="font-weight:600;color:var(--navy);font-size:.88rem;margin-bottom:10px">Not Checked In (${pending.length})</div>
+    ${pending.length ? `<table class="checkin-table"><thead><tr><th>Passenger</th><th>Seat</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="manifest-body-pending">
+        ${pending.map((p, i) => buildManifestRow(p, i)).join('')}
+      </tbody></table>` : '<div class="text-sm text-muted">All passengers checked in.</div>'}
   </div>
   <div class="card">
-    <table class="checkin-table">
-      <thead><tr><th>Passenger</th><th>Seat</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
-      <tbody id="manifest-body">
-        ${manifest.map((p, i) => buildManifestRow(p, i)).join('')}
-      </tbody>
-    </table>
+    <div style="font-weight:600;color:var(--navy);font-size:.88rem;margin-bottom:10px">Checked In (${checked.length})</div>
+    ${checked.length ? `<table class="checkin-table"><thead><tr><th>Passenger</th><th>Seat</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody id="manifest-body-checked">
+        ${checked.map((p, i) => buildManifestRow(p, i)).join('')}
+      </tbody></table>` : '<div class="text-sm text-muted">No passengers checked in yet.</div>'}
   </div>`;
 }
 
@@ -1965,17 +1972,50 @@ async function checkinPassenger(bookingId) {
 function updateCheckinRow(bookingId, name, seat) {
   const row = document.getElementById(`ci-row-${bookingId}`);
   if (!row) return;
-  const statusCell = row.querySelector('.ci-status');
-  if (statusCell) { statusCell.className = 'ci-status checked'; statusCell.textContent = '✓ Checked In'; }
-  const actionCell = row.querySelector('td:last-child');
-  if (actionCell) actionCell.innerHTML = '<span class="text-xs text-muted">Done</span>';
-  // Update counter
-  const checked = document.querySelectorAll('.ci-status.checked').length;
+  // Move row from pending tbody to checked tbody
+  const checkedBody = document.getElementById('manifest-body-checked');
+  const pendingBody = document.getElementById('manifest-body-pending');
+  if (checkedBody && pendingBody && row.parentNode === pendingBody) {
+    const statusCell = row.querySelector('.ci-status');
+    if (statusCell) { statusCell.className = 'ci-status checked'; statusCell.textContent = '✓ Checked In'; }
+    const actionCell = row.querySelector('td:last-child');
+    if (actionCell) actionCell.innerHTML = '<span class="text-xs text-muted">Done</span>';
+    pendingBody.removeChild(row);
+    checkedBody.appendChild(row);
+  } else {
+    // Fallback: update in place
+    const statusCell = row.querySelector('.ci-status');
+    if (statusCell) { statusCell.className = 'ci-status checked'; statusCell.textContent = '✓ Checked In'; }
+    const actionCell = row.querySelector('td:last-child');
+    if (actionCell) actionCell.innerHTML = '<span class="text-xs text-muted">Done</span>';
+  }
+  // Update counts in section headers
   const total = document.querySelectorAll('[id^="ci-row-"]').length;
+  const checked = document.querySelectorAll('.ci-status.checked').length;
+  const pending = total - checked;
+  const pendingHeader = document.querySelector('#manifest-body-pending')?.closest('.card')?.querySelector('div:first-child');
+  const checkedHeader = document.querySelector('#manifest-body-checked')?.closest('.card')?.querySelector('div:first-child');
+  if (pendingHeader) pendingHeader.textContent = `Not Checked In (${pending})`;
+  if (checkedHeader) checkedHeader.textContent = `Checked In (${checked})`;
   const counter = document.getElementById('ci-counter');
   if (counter) counter.textContent = `${checked}/${total} Checked In`;
   const progress = document.getElementById('ci-progress');
   if (progress) progress.style.width = `${Math.round(checked / total * 100)}%`;
+  // If no pending left, show empty state
+  if (pending === 0) {
+    const pendingCard = document.querySelector('#manifest-body-pending')?.closest('.card');
+    if (pendingCard) {
+      const table = pendingCard.querySelector('table');
+      if (table) table.style.display = 'none';
+      let emptyEl = pendingCard.querySelector('.ci-empty-pending');
+      if (!emptyEl) {
+        emptyEl = document.createElement('div');
+        emptyEl.className = 'text-sm text-muted ci-empty-pending';
+        emptyEl.textContent = 'All passengers checked in.';
+        pendingCard.appendChild(emptyEl);
+      }
+    }
+  }
 }
 
 async function simulateScan() {
@@ -2601,9 +2641,9 @@ function initCheckinScanner() {
   if (!document.getElementById('qr-reader')) {
     scannerSection.innerHTML = `
       <div style="max-width:420px;margin:0 auto;">
-        <h3 style="margin-bottom:12px;">Scan Passenger Ticket</h3>
+        <h3 style="margin-bottom:12px;color:var(--navy-dark)">Scan Passenger Ticket</h3>
         <div id="qr-reader" style="width:100%;border-radius:12px;overflow:hidden;"></div>
-        <div style="margin:16px 0;text-align:center;color:#888;font-size:13px;">
+        <div style="margin:16px 0;text-align:center;color:var(--gray-400);font-size:13px;">
           — or enter code manually —
         </div>
         <div style="display:flex;gap:8px;">
@@ -2611,16 +2651,16 @@ function initCheckinScanner() {
             id="manual-token-input"
             type="text"
             placeholder="Paste ticket code (tk_...)"
-            style="flex:1;padding:10px 14px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;font-family:monospace;"
+            style="flex:1;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:8px;font-size:14px;font-family:monospace;color:var(--navy-dark);background:var(--gray-100)"
           />
           <button
             id="manual-checkin-btn"
-            style="padding:10px 18px;background:#1a1a2e;color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;"
+            style="padding:10px 18px;background:var(--navy);color:white;border:none;border-radius:8px;cursor:pointer;font-size:14px;"
           >
             Check In
           </button>
         </div>
-        <div id="checkin-result" style="margin-top:16px;display:none;padding:14px 16px;border-radius:10px;font-size:15px;"></div>
+        <div id="checkin-result" style="margin-top:16px;display:none;padding:14px 16px;border-radius:10px;font-size:15px;color:var(--navy-dark)"></div>
       </div>
     `;
   }
