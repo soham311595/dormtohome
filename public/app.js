@@ -1707,14 +1707,15 @@ function buildStopRow(s, i, isCheckpoint = false) {
         <span id="${statusId}" style="font-size:.9rem;width:18px;text-align:center"></span>
       </div>
     </div>
-      <div style="width:160px;display:flex;flex-direction:column;gap:4px">
-        <label style="font-size:.75rem;font-weight:600;color:var(--navy)">Time:</label>
+      <div style="width:180px;display:flex;flex-direction:column;gap:4px">
         ${isCheckpoint
-          ? `<input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}" data-prev-time="${s.time || ''}" oninput="onStopTimeChange(this)">`
-          : `<div style="display:flex;gap:4px;align-items:center">
-               <input class="form-input" type="time" style="flex:1;color:var(--navy-dark);background:var(--gray-100);cursor:default" value="${s.time || ''}" readonly>
-               <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy);padding:7px 8px;flex-shrink:0;font-size:.7rem" onclick="editStopTime(this)">Edit</button>
-             </div>`}
+          ? `<label style="font-size:.75rem;font-weight:600;color:var(--navy)">Time:</label>
+             <input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" value="${s.time || ''}" data-prev-time="${s.time || ''}" oninput="onStopTimeChange(this)">`
+          : `<div style="display:flex;align-items:center;gap:6px">
+               <label style="font-size:.75rem;font-weight:600;color:var(--navy)">Calculated Time:</label>
+               <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy);padding:4px 7px;font-size:.7rem;white-space:nowrap" onclick="editStopTime(this)">Edit Time</button>
+             </div>
+             <input class="form-input" type="time" style="width:100%;color:var(--navy-dark);background:var(--gray-100);cursor:default" value="${s.time || ''}" readonly>`}
       </div>
     <button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="removeStopRow(this)">✕</button>
   </div>`;
@@ -1835,26 +1836,17 @@ function removeStopRow(btn) {
 }
 
 function editStopTime(btn) {
-  const container = btn.parentElement;
-  const input = container.querySelector('input[type="time"]');
+  const row = btn.closest('[id*="-row-"]');
+  const input = row.querySelector('input[type="time"]');
   if (!input) return;
   const oldTime = input.value;
   const msg = 'Changing a stop time may alter the departure and final stop arrival times on the route. Continue?';
-  if (confirm(msg)) {
-    input.readOnly = false;
-    input.focus();
-    const commit = function() {
-      if (input.value !== oldTime) {
-        input.dataset.prevTime = oldTime;
-        onStopTimeChange(input);
-      }
-      input.readOnly = true;
-      input.removeEventListener('change', commit);
-      input.removeEventListener('blur', commit);
-    };
-    input.addEventListener('change', commit);
-    input.addEventListener('blur', commit);
-  }
+  if (!confirm(msg)) return;
+  const newTime = prompt('Enter the new time for this stop (HH:MM):', oldTime);
+  if (!newTime || !/^\d{2}:\d{2}$/.test(newTime)) return;
+  input.value = newTime;
+  input.dataset.prevTime = oldTime;
+  onStopTimeChange(input);
 }
 
 function recalcStopDuration() {
