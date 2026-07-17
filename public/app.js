@@ -787,7 +787,7 @@ async function openRouteDetail(id) {
       <div class="stops-list">
         <div class="stop-item"><div class="stop-dot done">✓</div><div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${String(r.from_city)}</div><div class="text-xs text-muted">${String(r.departure_time)}</div></div></div>
         ${stops.length ? stops.map(s=>`<div class="stop-item"><div class="stop-dot ${s.type==='checkpoint'?'done':''}" style="${s.type==='checkpoint'?'border-color:var(--gold-light);font-size:.55rem;font-weight:700;color:var(--gold)':''}"><span>${s.type==='checkpoint'?'CP':''}</span></div>
-        <div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${s.city}</div><div class="text-xs text-muted">${s.type==='checkpoint'?'Guardian checkpoint':'Bus stop'}${s.scheduled_time?' · '+s.scheduled_time:''}</div></div></div>`).join('') : ''}
+        <div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${s.city}</div><div class="text-xs text-muted">${s.type==='checkpoint'?'Guardian checkpoint':'Bus stop'}${s.scheduled_time?' · '+s.scheduled_time:''}</div>${s.address ? `<div class="text-xs text-muted" style="margin-top:2px">${ICON.pin()} ${s.address}</div>` : ''}</div></div>`).join('') : ''}
         <div class="stop-item"><div class="stop-dot" style="border-color:var(--gold)"></div><div style="flex:1"><div style="font-weight:500;font-size:.9rem;color:var(--navy)">${String(r.to_city)}</div><div class="text-xs text-muted">${String(r.arrival_time)}</div></div></div>
       </div>
       ${r.notes ? `<div style="background:var(--gray-100);border-radius:8px;padding:12px;font-size:.85rem;color:var(--gray-600);margin-top:16px">${ICON.note()} ${r.notes}</div>` : ''}
@@ -1012,7 +1012,7 @@ function buildTicketsPage(bookings, activeTab) {
 }
 
 function buildTicketCard(b) {
-  return `<div style="background:var(--white);border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:1fr 90px;cursor:pointer;transition:var(--transition)" onclick="openTicket('${b.id}','${b.route_number}','${b.from_city}','${b.to_city}','${fmtDate(b.departure_date)}','${b.departure_time}','${b.seat_number}','${b.driver_name}','${b.destination_stop || ''}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--gray-200)'">
+  return `<div style="background:var(--white);border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;display:grid;grid-template-columns:1fr 90px;cursor:pointer;transition:var(--transition)" onclick="openTicket('${b.id}','${b.route_number}','${b.from_city}','${b.to_city}','${fmtDate(b.departure_date)}','${b.departure_time}','${b.seat_number}','${b.driver_name}','${b.destination_stop || ''}','${(b.destination_address || '').replace(/'/g, "\\'")}')" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--gray-200)'">
     <div style="padding:18px 22px">
       <div style="display:flex;justify-content:space-between;margin-bottom:12px">
         <span class="route-num">${b.route_number}</span>
@@ -1054,7 +1054,7 @@ function miniQR(bookingId) {
   return `<div id="qr-mini-${bookingId || 'x'}" style="width:60px;height:60px;border-radius:5px;overflow:hidden"></div>`;
 }
 
-function openTicket(id, num, from, to, date, time, seat, driver, destStop) {
+function openTicket(id, num, from, to, date, time, seat, driver, destStop, destAddr) {
   document.getElementById('modal-ticket-body').innerHTML = `
     <div style="text-align:center;margin-bottom:20px">
       <div style="font-size:.72rem;color:var(--gray-400);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px">Route ${num}</div>
@@ -1068,7 +1068,7 @@ function openTicket(id, num, from, to, date, time, seat, driver, destStop) {
       <div><div class="text-xs text-muted">DRIVER</div><div style="font-weight:600;color:var(--navy);font-size:.88rem">${driver}</div></div>
     </div>
     ${destStop ? `<div style="margin-top:10px;background:rgba(46,125,82,.08);border:1px solid rgba(46,125,82,.2);border-radius:10px;padding:12px;text-align:center;font-size:.88rem;color:var(--navy)">
-      ${ICON.bus()} Getting off at <strong>${destStop}</strong>
+      ${ICON.bus()} Getting off at <strong>${destStop}</strong>${destAddr ? `<br><span class="text-xs text-muted">${ICON.pin()} ${destAddr}</span>` : ''}
     </div>` : ''}
     <div style="margin-top:14px;background:rgba(201,150,42,.08);border:1px solid rgba(201,150,42,.2);border-radius:10px;padding:12px;font-size:.8rem;color:var(--gray-600)">
       ${ICON.bus()} <strong>Booking ID:</strong> ${id.substring(0,8).toUpperCase()}
@@ -1589,9 +1589,34 @@ function buildCreateStep() {
 function buildStopRow(s, i, isCheckpoint = false) {
   return `<div style="display:flex;gap:8px;margin-bottom:8px;align-items:center" id="${isCheckpoint ? 'cp' : 'stop'}-row-${i}">
     <input class="form-input" style="flex:1;color:var(--navy-dark);background:var(--gray-100)" placeholder="${isCheckpoint ? 'Checkpoint city, TX' : 'Stop city, TX'}" value="${s.city || ''}">
+    <input class="form-input" style="flex:1;color:var(--navy-dark);background:var(--gray-100)" placeholder="${isCheckpoint ? 'Address (optional)' : '123 Main St, Houston, TX'}" value="${s.address || ''}">
     <input class="form-input" type="time" style="width:110px;color:var(--navy-dark);background:var(--gray-100)" placeholder="Time" value="${s.time || ''}">
-    <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>
+    <button class="btn btn-danger btn-sm" onclick="removeStopRow(this)">✕</button>
   </div>`;
+}
+
+function recalcStopTimes() {
+  const dep = S.createData.departure_time;
+  const arr = S.createData.arrival_time;
+  if (!dep || !arr) return;
+  const [dh, dm] = dep.split(':').map(Number);
+  const [ah, am] = arr.split(':').map(Number);
+  const totalMin = (ah * 60 + am) - (dh * 60 + dm);
+  if (totalMin <= 0) return;
+  const stopRows = document.querySelectorAll('#create-stops-list > div, #create-cp-list > div');
+  const count = stopRows.length;
+  if (count === 0) return;
+  const segmentMin = totalMin / (count + 1);
+  stopRows.forEach((row, i) => {
+    const timeInput = row.querySelectorAll('input')[2];
+    if (timeInput) {
+      const offset = Math.round(segmentMin * (i + 1));
+      const minutes = (dh * 60 + dm) + offset;
+      const h = Math.floor(minutes / 60) % 24;
+      const m = minutes % 60;
+      timeInput.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+  });
 }
 
 function addStopRow(type) {
@@ -1601,6 +1626,12 @@ function addStopRow(type) {
   const i = container.children.length;
   div.innerHTML = buildStopRow({}, i, type === 'checkpoint');
   container.appendChild(div.firstElementChild);
+  recalcStopTimes();
+}
+
+function removeStopRow(btn) {
+  btn.parentElement.remove();
+  recalcStopTimes();
 }
 
 function collectCreateData() {
@@ -1616,12 +1647,12 @@ function collectCreateData() {
     const stopRows = document.querySelectorAll('#create-stops-list > div');
     S.createData.stops = Array.from(stopRows).map(row => {
       const inputs = row.querySelectorAll('input');
-      return { city: inputs[0]?.value, time: inputs[1]?.value, type: 'stop' };
+      return { city: inputs[0]?.value, address: inputs[1]?.value, time: inputs[2]?.value, type: 'stop' };
     }).filter(s => s.city);
     const cpRows = document.querySelectorAll('#create-cp-list > div');
     S.createData.checkpoints = Array.from(cpRows).map(row => {
       const inputs = row.querySelectorAll('input');
-      return { city: inputs[0]?.value, time: inputs[1]?.value, type: 'checkpoint' };
+      return { city: inputs[0]?.value, address: inputs[1]?.value, time: inputs[2]?.value, type: 'checkpoint' };
     }).filter(s => s.city);
   }
   if (S.createStep === 3) {
@@ -1652,6 +1683,7 @@ function createNext() {
   }
   S.createStep = Math.min(4, S.createStep + 1);
   renderCreateRoute();
+  if (S.createStep === 2) setTimeout(recalcStopTimes, 50);
 }
 function createBack() {
   collectCreateData();
@@ -1705,11 +1737,19 @@ async function renderCheckin() {
 
 function buildCheckinPage(route, manifest) {
   const checked = manifest.filter(p => p.checkin_status === 'checked').length;
+  const stops = route.stops || [];
+  const nextStop = stops.find(s => s.status === 'upcoming') || stops[stops.length - 1];
   return `
   <div class="page-header">
     <div><div class="page-title">Check-In — ${route.route_number}</div><div class="page-sub">${route.from_city} → ${route.to_city} · ${fmtDate(route.departure_date)}</div></div>
     <span class="badge badge-green" id="ci-counter">${checked}/${manifest.length} Checked In</span>
   </div>
+  ${nextStop ? `<div class="card card-sm mb-16" style="margin-bottom:16px;background:rgba(201,150,42,.06);border-color:var(--gold)">
+    <div style="display:flex;align-items:center;gap:10px">
+      ${ICON.bus()}
+      <div><div style="font-weight:600;color:var(--navy);font-size:.88rem">Next Stop: ${nextStop.city}${nextStop.scheduled_time ? ' · '+nextStop.scheduled_time : ''}</div>${nextStop.address ? `<div class="text-xs text-muted" style="margin-top:2px">${ICON.pin()} ${nextStop.address}</div>` : ''}</div>
+    </div>
+  </div>` : ''}
   <div id="checkin-scanner-section"></div>
   <div style="background:var(--white);border:2px dashed var(--gold);border-radius:14px;padding:22px;text-align:center;cursor:pointer;margin-bottom:20px;transition:var(--transition)" onclick="simulateScan()" onmouseover="this.style.background='rgba(201,150,42,.04)'" onmouseout="this.style.background='var(--white)'">
     <svg viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="1.5" width="36" height="36" style="margin:0 auto 10px;display:block"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="4" height="4"/><rect x="20" y="14" width="2" height="2"/><rect x="14" y="20" width="2" height="2"/></svg>

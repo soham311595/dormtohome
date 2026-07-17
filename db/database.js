@@ -88,11 +88,14 @@ async function createSchema() {
       id TEXT PRIMARY KEY,
       route_id TEXT NOT NULL REFERENCES routes(id),
       city TEXT NOT NULL,
+      address TEXT,
       "type" TEXT NOT NULL CHECK("type" IN ('stop','checkpoint')),
       order_index INTEGER NOT NULL,
       scheduled_time TEXT,
       status TEXT DEFAULT 'upcoming' CHECK(status IN ('upcoming','active','done'))
     );
+
+    ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS address TEXT;
 
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,

@@ -170,6 +170,12 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await expect(page.locator('#modal-route')).toHaveClass(/open/, { timeout: 5000 });
     await expect(page.locator('#modal-route-title')).toBeVisible();
 
+    // Verify stops list renders with address support
+    const stopsList = page.locator('#modal-route-body .stops-list');
+    await expect(stopsList).toBeVisible({ timeout: 3000 });
+    const stopItems = await stopsList.locator('.stop-item').count();
+    expect(stopItems).toBeGreaterThanOrEqual(2); // origin + at least one stop or destination
+
     // Close detail modal
     await page.locator('#modal-route .modal-close').click();
     await expect(page.locator('#modal-route.open')).not.toBeVisible({ timeout: 3000 });
@@ -582,6 +588,18 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Step 2: Stops & Checkpoints
     await expect(driver.getByText('Stops & Checkpoints')).toBeVisible({ timeout: 3000 });
+    // Add a stop and verify city + address + time inputs exist
+    const addStopBtn = driver.locator('button', { hasText: '+ Add Stop' });
+    await expect(addStopBtn).toBeVisible({ timeout: 3000 });
+    await addStopBtn.click();
+    await page.waitForTimeout(200);
+    const stopRow = driver.locator('#create-stops-list > div').first();
+    await expect(stopRow).toBeVisible({ timeout: 3000 });
+    const stopInputs = await stopRow.locator('input').count();
+    expect(stopInputs).toBe(3);
+    await expect(stopRow.locator('input').nth(0)).toHaveAttribute('placeholder', /Stop city/);
+    await expect(stopRow.locator('input').nth(1)).toHaveAttribute('placeholder', /123 Main St/);
+    await expect(stopRow.locator('input').nth(2)).toHaveAttribute('type', 'time');
     await driver.locator('button', { hasText: 'Next: Seats' }).click();
 
     // Step 3: Seats & Pricing

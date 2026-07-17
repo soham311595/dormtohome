@@ -13,7 +13,8 @@ router.get('/bookings/mine', authMiddleware, async (req, res) => {
     const bookings = await all(`
       SELECT b.*, r.route_number, r.from_city, r.to_city, r.departure_date,
              r.departure_time, r.arrival_time, r.duration,
-             u.first_name || ' ' || u.last_name as driver_name
+             u.first_name || ' ' || u.last_name as driver_name,
+             (SELECT rs.address FROM route_stops rs WHERE rs.route_id = r.id AND rs.city = b.destination_stop AND rs.type='stop' LIMIT 1) as destination_address
       FROM bookings b
       JOIN routes r ON b.route_id=r.id
       JOIN users u ON r.driver_id=u.id
