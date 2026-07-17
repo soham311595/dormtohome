@@ -1695,7 +1695,7 @@ function buildStopRow(s, i, isCheckpoint = false) {
     <div style="flex:1;display:flex;flex-direction:column;gap:4px">
       <label style="font-size:.75rem;font-weight:600;color:var(--navy)">${cityLabel}</label>
       <div style="position:relative">
-        <input class="form-input" id="${cityId}" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" placeholder="${cityPlaceholder}" value="${s.city || ''}" oninput="${isCheckpoint ? `autocityCheckpoint(this,'${ddId}')` : `autocityCreate(this,'${ddId}')`}">
+        <input class="form-input" id="${cityId}" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" placeholder="${cityPlaceholder}" value="${s.city || ''}"${isCheckpoint ? ` onfocus="autocityCheckpoint(this,'${ddId}',true)" oninput="autocityCheckpoint(this,'${ddId}')"` : ` oninput="autocityCreate(this,'${ddId}')"`}>
         <div class="city-dropdown" id="${ddId}"></div>
       </div>
     </div>
@@ -2616,17 +2616,23 @@ function autocityCreate(input, ddId) {
   dd.classList.add('open');
 }
 
-function autocityCheckpoint(input, ddId) {
+function autocityCheckpoint(input, ddId, showAll) {
   const q = input.value.toLowerCase();
   const dd = document.getElementById(ddId);
   if (!dd) return;
-  if (!q) { dd.classList.remove('open'); return; }
   const suggested = S.suggestedCheckpoints || [];
   let pool = CITIES;
   if (suggested.length > 0) {
     const sugSet = new Set(suggested.map(s => s.replace(/, ?TX$/, '').trim().toLowerCase()));
     pool = CITIES.filter(c => sugSet.has(c.n.toLowerCase()));
   }
+  if (showAll && pool.length > 0) {
+    const list = pool.slice(0, 10);
+    dd.innerHTML = list.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
+    dd.classList.add('open');
+    return;
+  }
+  if (!q) { dd.classList.remove('open'); return; }
   const matches = pool.filter(c => c.n.toLowerCase().includes(q)).slice(0, 6);
   if (!matches.length) { dd.classList.remove('open'); return; }
   dd.innerHTML = matches.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
