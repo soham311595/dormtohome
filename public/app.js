@@ -1620,12 +1620,12 @@ function buildCreateStep() {
     <div class="section-title">Route Information</div>
     <div class="two-col">
       <div class="form-group" style="position:relative"><label class="form-label" style="color:var(--navy)">Departure City</label>
-        <input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-from" placeholder="College Station, TX" value="${d.from_city || ''}" oninput="autocityCreate(this,'cr-from-dd');updateCreateArrival()">
+        <input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-from" placeholder="Enter Departure City" value="${d.from_city || ''}" oninput="autocityCreate(this,'cr-from-dd');updateCreateArrival()">
         <div class="city-dropdown" id="cr-from-dd"></div>
         <div id="cr-from-err" style="color:var(--error);font-size:.75rem;margin-top:4px"></div>
       </div>
       <div class="form-group" style="position:relative"><label class="form-label" style="color:var(--navy)">Arrival City</label>
-        <input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-to" placeholder="Houston, TX" value="${d.to_city || ''}" oninput="autocityCreate(this,'cr-to-dd');updateCreateArrival()">
+        <input class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-to" placeholder="Enter Arrival City" value="${d.to_city || ''}" oninput="autocityCreate(this,'cr-to-dd');updateCreateArrival()">
         <div class="city-dropdown" id="cr-to-dd"></div>
         <div id="cr-to-err" style="color:var(--error);font-size:.75rem;margin-top:4px"></div>
       </div>
