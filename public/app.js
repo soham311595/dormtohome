@@ -2153,10 +2153,10 @@ async function openSendNotif(routeId) {
     <div class="form-group">
       <label class="form-label" style="color:var(--navy)">Notification Type</label>
       <select class="form-input" style="color:var(--navy-dark);background:var(--gray-100)" id="notif-type" onchange="updateNotifPreview()">
-        <option value="eta">ETA Update — I am [X] away from next stop</option>
+        <option value="eta">ETA Update — Your bus is [X] away from next stop</option>
         <option value="delay">Running Late — Significant delay</option>
         <option value="depart">Departing — Leaving this stop now</option>
-        <option value="custom">Custom message</option>
+        <option value="custom" style="color:var(--gray-400)">Custom message</option>
       </select>
     </div>
     <div id="notif-eta-wrap" class="form-group">
@@ -2167,9 +2167,9 @@ async function openSendNotif(routeId) {
     </div>
     <div id="notif-custom-wrap" class="form-group" style="display:none">
       <label class="form-label" style="color:var(--navy)">Message</label>
-      <textarea class="form-input" rows="3" style="color:var(--navy-dark);background:var(--gray-100);resize:vertical" id="notif-custom" placeholder="Custom message..." oninput="updateNotifPreview()"></textarea>
+      <textarea class="form-input" rows="3" style="color:var(--gray-400);background:var(--gray-100);resize:vertical" id="notif-custom" placeholder="Custom message..." oninput="updateNotifPreview()"></textarea>
     </div>
-    <div style="background:var(--gray-100);border-radius:10px;padding:14px;font-size:.85rem;color:var(--navy-dark);margin-bottom:16px;min-height:48px" id="notif-preview">Preview will appear here</div>
+    <div style="background:var(--gray-100);border-radius:10px;padding:14px;font-size:.85rem;color:var(--navy-dark);margin-bottom:16px;min-height:48px" id="notif-preview">Select a notification type to see preview</div>
     <button class="btn btn-gold btn-full btn-lg" onclick="sendDriverNotif()">Send to All Passengers & Guardians</button>`;
   updateNotifPreview();
   openModal('modal-send-notif');
@@ -2184,13 +2184,16 @@ function updateNotifPreview() {
   if (etaWrap) etaWrap.style.display = type === 'eta' ? '' : 'none';
   if (customWrap) customWrap.style.display = type === 'custom' ? '' : 'none';
   const time = document.getElementById('notif-eta-time')?.value || '15 min';
+  const customVal = document.getElementById('notif-custom')?.value || '';
   const msgs = {
-    eta: `[Pin] Update: I am ${time} away from the next stop.`,
+    eta: `[Pin] Update: Your bus is ${time} away from the next stop.`,
     delay: '[!] Heads up: We are running more than 5 minutes behind schedule. Updated ETA to follow.',
     depart: '[Bus] We are now departing from the current stop. See you at the next one!',
-    custom: document.getElementById('notif-custom')?.value || '',
+    custom: customVal || 'Your custom message preview will appear here:',
   };
   preview.textContent = msgs[type] || '';
+  if (type === 'custom') preview.style.color = customVal ? 'var(--navy-dark)' : 'var(--gray-400)';
+  else preview.style.color = 'var(--navy-dark)';
 }
 
 async function sendDriverNotif() {
@@ -2198,7 +2201,7 @@ async function sendDriverNotif() {
   const type = document.getElementById('notif-type')?.value;
   const time = document.getElementById('notif-eta-time')?.value || '15 min';
   const msgs = {
-    eta: `[Pin] Update: I am ${time} away from the next stop.`,
+    eta: `[Pin] Update: Your bus is ${time} away from the next stop.`,
     delay: '[!] Heads up: We are running more than 5 minutes behind schedule.',
     depart: '[Bus] We are now departing from the current stop.',
     custom: document.getElementById('notif-custom')?.value || 'Update from your driver.',
