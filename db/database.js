@@ -96,6 +96,7 @@ async function createSchema() {
     );
 
     ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS address TEXT;
+    ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id TEXT DEFAULT NULL;
 
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,

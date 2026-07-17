@@ -59,6 +59,8 @@ document.addEventListener('click', e => {
     startBooking(el.dataset.rid);
   } else if (action === 'support-req') {
     supportRequest(el.dataset.rid);
+  } else if (action === 'reply') {
+    replyToMsg(el.dataset.msgId, el.dataset.sender, el.dataset.snippet);
   }
 });
 
@@ -1134,6 +1136,13 @@ function buildChatUI(rooms, msgs, active) {
         </div>
       </div>
       <div class="chat-messages" id="chat-messages">${buildMsgsWithDates(msgs)}</div>
+      <div id="reply-bar" class="reply-bar" style="display:none">
+        <div style="flex:1">
+          <div style="font-size:.75rem;color:var(--gray-400)">Replying to <strong id="reply-to-name"></strong></div>
+          <div class="reply-snippet" id="reply-to-snippet"></div>
+        </div>
+        <button class="btn btn-sm" style="background:none;color:var(--gray-400);padding:4px;cursor:pointer;border:none" onclick="cancelReply()">✕</button>
+      </div>
       <div class="chat-input-row">
         <textarea class="chat-input" id="chat-input" rows="1" placeholder="Message..." onkeypress="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}"></textarea>
         <button class="btn btn-gold" onclick="sendMsg()">Send</button>
@@ -1157,7 +1166,7 @@ function buildMsgsWithDates(msgs) {
     const d = new Date(m.sent_at);
     const dateKey = fmtMsgDate(d);
     if (dateKey !== lastDate) {
-      parts.push(`<div class="chat-date-sep"><span>${fmtDateHeader(d)}</span></div>`);
+      parts.push(`<div class="chat-date-sep" data-date="${dateKey}"><span>${fmtDateHeader(d)}</span></div>`);
       lastDate = dateKey;
     }
     parts.push(buildMsgBubble(m));
@@ -1169,33 +1178,55 @@ function buildMsgBubble(m) {
   const isMe = S.user && m.sender_id === S.user.id;
   if (m.message_type === 'system') return `<div class="system-msg">${m.content}</div>`;
   const isNotif = m.message_type === 'notification';
+  const hasReply = m.reply_sender_name && m.reply_content;
+  const snippet = (m.reply_content || '').substring(0, 80);
   return `<div class="chat-msg ${isMe ? 'me' : 'them'} ${isNotif ? 'notif-msg' : ''}">
     ${!isMe ? `<div class="msg-sender">${m.sender_name} · ${m.sender_role}</div>` : ''}
+    ${hasReply ? `<div class="msg-reply"><strong>${escHtml(m.reply_sender_name)}</strong> ${escHtml(snippet)}${m.reply_content.length > 80 ? '…' : ''}</div>` : ''}
     <div class="msg-bubble">${m.content}</div>
-    <div class="msg-meta">${new Date(m.sent_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+      <div class="msg-meta">${new Date(m.sent_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</div>
+      <button class="btn-reply" data-action="reply" data-msg-id="${m.id}" data-sender="${escAttr(m.sender_name)}" data-snippet="${escAttr(m.content.substring(0, 80))}" title="Reply">↩</button>
+    </div>
   </div>`;
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function escAttr(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function replyToMsg(msgId, senderName, snippet) {
+  S.replyingTo = { id: msgId, sender_name: senderName, snippet };
+  const bar = document.getElementById('reply-bar');
+  const nameEl = document.getElementById('reply-to-name');
+  const snippetEl = document.getElementById('reply-to-snippet');
+  if (bar) bar.style.display = 'flex';
+  if (nameEl) nameEl.textContent = senderName;
+  if (snippetEl) snippetEl.textContent = snippet;
+  const input = document.getElementById('chat-input');
+  if (input) input.focus();
+}
+
+function cancelReply() {
+  S.replyingTo = null;
+  const bar = document.getElementById('reply-bar');
+  if (bar) bar.style.display = 'none';
 }
 
 function appendChatMsg(msg) {
   const body = document.getElementById('chat-messages');
   if (!body || msg.route_id !== S.chatRoute) return;
-  const prevDate = body.querySelector('.chat-date-sep:last-child');
+  const lastSep = body.querySelector('.chat-date-sep:last-child');
   const msgDate = fmtMsgDate(new Date(msg.sent_at));
-  let lastDateKey = '';
-  if (prevDate) {
-    const prevText = prevDate.querySelector('span')?.textContent || '';
-    const parsed = new Date(prevText);
-    if (!isNaN(parsed.getTime())) lastDateKey = fmtMsgDate(parsed);
-  } else {
-    const firstMsg = body.querySelector('.chat-msg');
-    if (firstMsg && body.previousElementSibling?.classList.contains('chat-date-sep')) {
-      const t = body.previousElementSibling.querySelector('span')?.textContent || '';
-      const parsed = new Date(t);
-      if (!isNaN(parsed.getTime())) lastDateKey = fmtMsgDate(parsed);
-    }
-  }
+  const lastDateKey = lastSep ? (lastSep.dataset.date || '') : '';
   if (msgDate !== lastDateKey) {
-    body.innerHTML += `<div class="chat-date-sep"><span>${fmtDateHeader(new Date(msg.sent_at))}</span></div>`;
+    body.innerHTML += `<div class="chat-date-sep" data-date="${msgDate}"><span>${fmtDateHeader(new Date(msg.sent_at))}</span></div>`;
   }
   body.innerHTML += buildMsgBubble(msg);
   body.scrollTop = body.scrollHeight;
@@ -1211,11 +1242,13 @@ async function sendMsg() {
   const text = input.value.trim();
   if (!text || !S.chatRoute) return;
   input.value = '';
+  const replyId = S.replyingTo ? S.replyingTo.id : null;
+  cancelReply();
   if (S.socket) {
-    S.socket.emit('send_message', { routeId: S.chatRoute, content: text });
+    S.socket.emit('send_message', { routeId: S.chatRoute, content: text, reply_to_id: replyId });
   } else {
     try {
-      const msg = await api('POST', `/messages/${S.chatRoute}`, { content: text });
+      const msg = await api('POST', `/messages/${S.chatRoute}`, { content: text, reply_to_id: replyId });
       appendChatMsg(msg);
   } catch (e) { console.error('renderPassengerRoutes error:', e); toast(e.message || 'Failed to load routes', 'error'); }
 }

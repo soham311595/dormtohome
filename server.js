@@ -89,12 +89,17 @@ io.on('connection', (socket) => {
   socket.on('join_route_room',  (routeId) => socket.join(`route:${routeId}`));
   socket.on('leave_route_room', (routeId) => socket.leave(`route:${routeId}`));
 
-  socket.on('send_message', async ({ routeId, content }) => {
+  socket.on('send_message', async ({ routeId, content, reply_to_id }) => {
     if (!routeId || !content) return;
     try {
       const id = uuidv4();
-      await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'text')`, [id, routeId, user.id, content]);
-      const msg = await get(`SELECT m.*, u.first_name||' '||u.last_name as sender_name, u."role" as sender_role FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=$1`, [id]);
+      await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type,reply_to_id) VALUES ($1,$2,$3,$4,'text',$5)`, [id, routeId, user.id, content, reply_to_id || null]);
+      const msg = await get(`SELECT m.*, u.first_name||' '||u.last_name as sender_name, u."role" as sender_role,
+        rm.content as reply_content, ru.first_name||' '||ru.last_name as reply_sender_name
+        FROM messages m JOIN users u ON m.sender_id=u.id
+        LEFT JOIN messages rm ON m.reply_to_id = rm.id
+        LEFT JOIN users ru ON rm.sender_id = ru.id
+        WHERE m.id=$1`, [id]);
       io.to(`route:${routeId}`).emit('new_message', msg);
     } catch (e) { console.error('[socket] send_message:', e.message); }
   });

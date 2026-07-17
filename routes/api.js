@@ -197,8 +197,12 @@ router.post('/requests/:id/support', authMiddleware, async (req, res) => {
 router.get('/messages/:routeId', authMiddleware, async (req, res) => {
   try {
     const msgs = await all(`
-      SELECT m.*, u.first_name || ' ' || u.last_name as sender_name, u."role" as sender_role
-      FROM messages m JOIN users u ON m.sender_id=u.id
+      SELECT m.*, u.first_name || ' ' || u.last_name as sender_name, u."role" as sender_role,
+             rm.content as reply_content, ru.first_name || ' ' || ru.last_name as reply_sender_name
+      FROM messages m
+      JOIN users u ON m.sender_id=u.id
+      LEFT JOIN messages rm ON m.reply_to_id = rm.id
+      LEFT JOIN users ru ON rm.sender_id = ru.id
       WHERE m.route_id=$1 ORDER BY m.sent_at ASC`, [req.params.routeId]);
     res.json(msgs);
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -206,13 +210,18 @@ router.get('/messages/:routeId', authMiddleware, async (req, res) => {
 
 router.post('/messages/:routeId', authMiddleware, async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, reply_to_id } = req.body;
     if (!content) return res.status(400).json({ error: 'Empty message' });
     const id = uuidv4();
-    await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'text')`,
-      [id, req.params.routeId, req.user.id, content]);
-    const msg = await get(`SELECT m.*, u.first_name || ' ' || u.last_name as sender_name, u."role" as sender_role
-      FROM messages m JOIN users u ON m.sender_id=u.id WHERE m.id=$1`, [id]);
+    await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type,reply_to_id) VALUES ($1,$2,$3,$4,'text',$5)`,
+      [id, req.params.routeId, req.user.id, content, reply_to_id || null]);
+    const msg = await get(`SELECT m.*, u.first_name || ' ' || u.last_name as sender_name, u."role" as sender_role,
+      rm.content as reply_content, ru.first_name || ' ' || ru.last_name as reply_sender_name
+      FROM messages m
+      JOIN users u ON m.sender_id=u.id
+      LEFT JOIN messages rm ON m.reply_to_id = rm.id
+      LEFT JOIN users ru ON rm.sender_id = ru.id
+      WHERE m.id=$1`, [id]);
     res.json(msg);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
