@@ -242,14 +242,28 @@ async function seedDatabase() {
   await run(`INSERT INTO bookings (id,route_id,passenger_id,seat_number,checkin_status,booking_type,amount_paid) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
     [uuidv4(),'r-006','u-passenger-2','4C','pending','seat',38]);
 
-  for (const q of [
-    { from:'College Station',to:'Houston',         date:'Aug 15',time:'8:00 AM',count:14 },
-    { from:'Houston',        to:'College Station', date:'Sep 10',time:'3:00 PM',count:9  },
-    { from:'College Station',to:'Dallas',          date:'Sep 5', time:'7:00 AM',count:22 },
-    { from:'College Station',to:'Austin',          date:'Oct 20',time:'9:00 AM',count:7  },
-    { from:'Austin',         to:'Dallas',          date:'Sep 20',time:'6:30 AM',count:5  },
-    { from:'San Antonio',    to:'Houston',         date:'Oct 10',time:'9:00 AM',count:11 },
-  ]) {
+  const reqCities = ['College Station','Houston','Dallas','Austin','San Antonio'];
+  const reqDates = ['Aug 10','Aug 22','Sep 5','Sep 18','Oct 3','Oct 14','Oct 25','Nov 7'];
+  const reqTimes = ['7:00 AM','8:30 AM','10:00 AM','1:00 PM','3:30 PM','6:00 PM'];
+  const combos = [];
+  const used = new Set();
+  for (let i = 0; i < 10; i++) {
+    let from, to, key;
+    do {
+      from = reqCities[Math.floor(Math.random() * reqCities.length)];
+      to = reqCities[Math.floor(Math.random() * reqCities.length)];
+      key = `${from}>${to}`;
+    } while (from === to || used.has(key));
+    used.add(key);
+    combos.push({
+      from,
+      to,
+      date: reqDates[Math.floor(Math.random() * reqDates.length)],
+      time: reqTimes[Math.floor(Math.random() * reqTimes.length)],
+      count: Math.floor(Math.random() * 20) + 3,
+    });
+  }
+  for (const q of combos) {
     await run(`INSERT INTO route_requests (id,requester_id,from_city,to_city,requested_date,requested_time,supporter_count,status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
       [uuidv4(),'u-passenger-2',q.from,q.to,q.date,q.time,q.count,'open']);
   }

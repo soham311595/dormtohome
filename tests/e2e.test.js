@@ -630,13 +630,21 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await driver.locator('[data-tab="routes"]').click();
     await waitForSpinner();
 
-    // Requests tab
+    // Requests tab — test sorting
     await driver.locator('[data-tab="requested"]').click();
     await waitForSpinner();
     await expect(driver.getByText('Passenger Requests')).toBeVisible({ timeout: 5000 });
     const hasRequests = await driver.locator('.card-sm').first().isVisible().catch(() => false);
     if (hasRequests) {
       await expect(driver.locator('.card-sm').first()).toBeVisible({ timeout: 5000 });
+      // Test sort by Departure
+      await driver.locator('.filter-chip', { hasText: 'Departure' }).click();
+      await page.waitForTimeout(300);
+      const cardsAfterSort = await driver.locator('.card-sm').count();
+      expect(cardsAfterSort).toBeGreaterThan(0);
+      // Switch back to Most Supporters
+      await driver.locator('.filter-chip', { hasText: 'Most Supporters' }).click();
+      await page.waitForTimeout(300);
     }
 
     // Messages tab (driver)

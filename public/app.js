@@ -617,8 +617,9 @@ async function applyFilterPanel() {
 
   closeFilterPanel();
 
-  const reqTabActive = document.getElementById('tab-requested')?.classList.contains('active');
-  if (reqTabActive) {
+  const passengerReqTab = document.getElementById('tab-requested')?.classList.contains('active');
+  const driverReqTab = document.getElementById('screen-driver')?.classList.contains('active') && S.dTab === 'requested';
+  if (passengerReqTab || driverReqTab) {
     applyRequestFilters();
     return;
   }
@@ -2099,27 +2100,75 @@ async function renderRequested() {
 }
 
 let requestsSort = 'supporters';
+let requestsFilters = { departures: [], arrivals: [], dateFrom: '', dateTo: '' };
+
 function sortRequests(field) {
   requestsSort = field;
   renderRequested();
 }
 
+function openRequestFilter(type) {
+  savedFilters.departures = [...requestsFilters.departures];
+  savedFilters.arrivals = [...requestsFilters.arrivals];
+  savedFilters.dateFrom = requestsFilters.dateFrom;
+  savedFilters.dateTo = requestsFilters.dateTo;
+  openFilterPanel(type);
+}
+
+function applyRequestFilters() {
+  requestsFilters = {
+    departures: [...savedFilters.departures],
+    arrivals: [...savedFilters.arrivals],
+    dateFrom: savedFilters.dateFrom,
+    dateTo: savedFilters.dateTo,
+  };
+  renderRequested();
+}
+
+function clearRequestFilters() {
+  requestsFilters = { departures: [], arrivals: [], dateFrom: '', dateTo: '' };
+  savedFilters = { departures: [], arrivals: [], dateFrom: '', dateTo: '', time: [], seats: '' };
+  const btn = document.getElementById('clear-request-filters');
+  if (btn) btn.remove();
+  renderRequested();
+  toast('Filters cleared', 'success');
+}
+
 function buildRequestedPage(reqs) {
+  let filtered = [...reqs];
+  if (requestsFilters.departures.length > 0) {
+    filtered = filtered.filter(r =>
+      requestsFilters.departures.some(c => r.from_city.toLowerCase().includes(c.toLowerCase()))
+    );
+  }
+  if (requestsFilters.arrivals.length > 0) {
+    filtered = filtered.filter(r =>
+      requestsFilters.arrivals.some(c => r.to_city.toLowerCase().includes(c.toLowerCase()))
+    );
+  }
+  if (requestsFilters.dateFrom) {
+    filtered = filtered.filter(r => r.requested_date && r.requested_date >= requestsFilters.dateFrom);
+  }
+  if (requestsFilters.dateTo) {
+    filtered = filtered.filter(r => r.requested_date && r.requested_date <= requestsFilters.dateTo);
+  }
+  const hasFilters = requestsFilters.departures.length || requestsFilters.arrivals.length || requestsFilters.dateFrom || requestsFilters.dateTo;
   let html = `
   <div class="page-header"><div><div class="page-title">Passenger Requests</div><div class="page-sub">Routes requested by passengers</div></div></div>
   <div class="filter-bar">
-    <span class="filter-label">Sort:</span>
-    <div class="filter-chip${requestsSort === 'supporters' ? ' active' : ''}" onclick="sortRequests('supporters')">Most Supporters</div>
-    <div class="filter-chip${requestsSort === 'departure' ? ' active' : ''}" onclick="sortRequests('departure')">Departure</div>
-    <div class="filter-chip${requestsSort === 'arrival' ? ' active' : ''}" onclick="sortRequests('arrival')">Arrival</div>
-    <div class="filter-chip${requestsSort === 'date' ? ' active' : ''}" onclick="sortRequests('date')">Date</div>
+    <span class="filter-label">${hasFilters ? 'Filtered:' : 'Sort:'}</span>
+    <div class="filter-chip${!hasFilters && requestsSort === 'supporters' ? ' active' : ''}" onclick="sortRequests('supporters')">Most Supporters</div>
+    <div class="filter-chip${requestsFilters.departures.length ? ' active' : ''}" onclick="openRequestFilter('departure')">Departure${requestsFilters.departures.length ? ` (${requestsFilters.departures.length})` : ''}</div>
+    <div class="filter-chip${requestsFilters.arrivals.length ? ' active' : ''}" onclick="openRequestFilter('arrival')">Arrival${requestsFilters.arrivals.length ? ` (${requestsFilters.arrivals.length})` : ''}</div>
+    <div class="filter-chip${requestsFilters.dateFrom || requestsFilters.dateTo ? ' active' : ''}" onclick="openRequestFilter('date')">Date${requestsFilters.dateFrom || requestsFilters.dateTo ? ' ✓' : ''}</div>
+    ${hasFilters ? '<div class="filter-chip" id="clear-request-filters" style="background:var(--error);color:white;border-color:var(--error);cursor:pointer" onclick="clearRequestFilters()">✕ Clear All</div>' : ''}
   </div>
   <div style="display:flex;flex-direction:column;gap:12px">`;
   let sorted;
-  if (requestsSort === 'departure') sorted = [...reqs].sort((a, b) => String(a.from_city).localeCompare(String(b.from_city)));
-  else if (requestsSort === 'arrival') sorted = [...reqs].sort((a, b) => String(a.to_city).localeCompare(String(b.to_city)));
-  else if (requestsSort === 'date') sorted = [...reqs].sort((a, b) => (a.requested_date || '').localeCompare(b.requested_date || ''));
-  else sorted = [...reqs].sort((a, b) => b.supporter_count - a.supporter_count);
+  if (requestsSort === 'departure') sorted = [...filtered].sort((a, b) => String(a.from_city).localeCompare(String(b.from_city)));
+  else if (requestsSort === 'arrival') sorted = [...filtered].sort((a, b) => String(a.to_city).localeCompare(String(b.to_city)));
+  else if (requestsSort === 'date') sorted = [...filtered].sort((a, b) => (a.requested_date || '').localeCompare(b.requested_date || ''));
+  else sorted = [...filtered].sort((a, b) => b.supporter_count - a.supporter_count);
   sorted.forEach(r => {
     const pct = Math.min(100, Math.round(r.supporter_count / 25 * 100));
     html += `
