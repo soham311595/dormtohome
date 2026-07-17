@@ -455,6 +455,11 @@ html{font-size:15px}
         <span class="text-sm" style="color:rgba(255,255,255,.7)">Checkpoint notifications</span>
         <button class="help-icon" onclick="showHelp('checkpoint')">?</button>
       </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+        <div class="checkbox checked" id="chk-ci" onclick="this.classList.toggle('checked')"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <span class="text-sm" style="color:rgba(255,255,255,.7)">Check-in notifications</span>
+        <button class="help-icon" onclick="showHelp('checkin')">?</button>
+      </div>
     </div>
     <button class="btn btn-gold btn-full btn-lg mt-20" style="margin-top:20px" id="reg-btn" onclick="doRegister()">Create Account</button>
     <div class="auth-link" style="margin-top:12px">Have an account? <a onclick="showScreen('screen-login')">Sign in</a></div>

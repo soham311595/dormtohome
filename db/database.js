@@ -97,6 +97,7 @@ async function createSchema() {
 
     ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS address TEXT;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id TEXT DEFAULT NULL;
+    ALTER TABLE guardians ADD COLUMN IF NOT EXISTS checkin_notifs INTEGER DEFAULT 0;
 
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,
@@ -193,8 +194,8 @@ async function seedDatabase() {
     );
   }
 
-  await run(`INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO NOTHING`,
-    [uuidv4(), 'u-passenger-1', 'Linda Johnson', 'linda@gmail.com', '5551234567', 1]);
+  await run(`INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs,checkin_notifs) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING`,
+    [uuidv4(), 'u-passenger-1', 'Linda Johnson', 'linda@gmail.com', '5551234567', 1, 1]);
 
   const routes = [
     { id:'r-001',num:'DTH-201',driver:'u-driver-1',from:'College Station',fz:'77840',to:'Houston',        tz:'77001',date:'2026-08-15',dep:'08:00 AM',arr:'11:30 AM',dur:'3h 30m',price:28 },

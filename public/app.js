@@ -285,6 +285,7 @@ async function doRegister() {
       guardian_email: gEmail,
       guardian_phone: gPhone,
       checkpoint_notifs: document.getElementById('chk-cp')?.classList.contains('checked'),
+      checkin_notifs: document.getElementById('chk-ci')?.classList.contains('checked'),
     };
     const data = await api('POST', '/auth/register', body, false);
     toast(data.message || 'Registration successful! You can now sign in.', 'success');
@@ -1328,10 +1329,15 @@ function buildAccountPage(user, guardians) {
             <div class="form-group"><label class="form-label" style="color:var(--navy)">Email</label><input class="form-input" style="color:var(--navy-dark);background:white" id="g-add-email" placeholder="guardian@email.com" type="email"></div>
             <div class="form-group"><label class="form-label" style="color:var(--navy)">Phone</label><input class="form-input" style="color:var(--navy-dark);background:white" id="g-add-phone" placeholder="+1 (555) 000-0000"></div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:8px">
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
             <div class="checkbox checked" id="g-add-cp" onclick="this.classList.toggle('checked')"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
             <span class="text-sm" style="color:var(--navy-dark)">Checkpoint notifications</span>
             <button class="help-icon" onclick="showHelp('checkpoint')">?</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;margin-top:4px">
+            <div class="checkbox checked" id="g-add-ci" onclick="this.classList.toggle('checked')"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
+            <span class="text-sm" style="color:var(--navy-dark)">Check-in notifications</span>
+            <button class="help-icon" onclick="showHelp('checkin')">?</button>
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-gold btn-sm" onclick="saveGuardian()">Save Guardian</button>
@@ -1351,9 +1357,14 @@ function buildGuardianCard(g) {
       <div style="font-weight:500;font-size:.9rem;color:var(--navy)">${g.name}</div>
       <div class="text-xs text-muted">${contactInfo}</div>
       <div style="display:flex;align-items:center;gap:6px;margin-top:4px">
-        <div class="checkbox ${g.checkpoint_notifs ? 'checked' : ''}" onclick="toggleGuardianNotif('${g.id}',this)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
-        <span class="text-xs text-muted">Send Checkpoint Notifications</span>
+        <div class="checkbox ${g.checkpoint_notifs ? 'checked' : ''}" onclick="toggleGuardianNotif('${g.id}','checkpoint_notifs',this)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <span class="text-xs text-muted">Checkpoint</span>
         <button class="help-icon" onclick="showHelp('checkpoint')">?</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+        <div class="checkbox ${g.checkin_notifs ? 'checked' : ''}" onclick="toggleGuardianNotif('${g.id}','checkin_notifs',this)"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
+        <span class="text-xs text-muted">Check-in</span>
+        <button class="help-icon" onclick="showHelp('checkin')">?</button>
       </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:4px">
@@ -1435,6 +1446,7 @@ async function saveGuardian() {
       email: email,
       phone: phone,
       checkpoint_notifs: document.getElementById('g-add-cp').classList.contains('checked'),
+      checkin_notifs: document.getElementById('g-add-ci').classList.contains('checked'),
     });
     document.getElementById('guardian-list').innerHTML += buildGuardianCard(g);
     document.getElementById('guardian-add-form').style.display = 'none';
@@ -1451,10 +1463,10 @@ async function deleteGuardian(id) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-async function toggleGuardianNotif(id, checkbox) {
+async function toggleGuardianNotif(id, type, checkbox) {
   checkbox.classList.toggle('checked');
   try {
-    await api('PATCH', `/guardians/${id}`, { checkpoint_notifs: checkbox.classList.contains('checked') });
+    await api('PATCH', `/guardians/${id}`, { [type]: checkbox.classList.contains('checked') });
   } catch (e) { checkbox.classList.toggle('checked'); }
 }
 
@@ -2945,6 +2957,7 @@ function destroyPassengerMap() {
 function showHelp(type) {
   const content = {
     checkpoint: { title: 'Checkpoint Notifications', body: 'When the bus passes through a checkpoint city, DormToHome automatically sends a notification to your linked guardians. Checkpoints are intermediate cities the bus travels through but does not stop at. This gives family members real-time awareness of your journey without requiring stops.' },
+    checkin: { title: 'Check-in Notifications', body: 'When your passenger checks in and boards the bus, DormToHome automatically sends an email notification to your linked guardians. This lets family members know that you have safely boarded.' },
     foryou: { title: 'For You — Personalized Sorting', body: 'This feature analyzes your booking history to identify your most frequent routes, preferred departure times, and common destinations. It re-sorts available routes to show the most relevant options first, saving you time.' },
   };
   const c = content[type];

@@ -7,7 +7,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const { initDatabase, all, get, run } = require('./db/database');
 const { v4: uuidv4 } = require('uuid');
-const { sendEmail, guardianCheckpointHTML } = require('./utils/email');
+const { sendEmail, guardianCheckpointHTML, guardianCheckinHTML } = require('./utils/email');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dormtohome-secret-change-in-production';
 if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'dormtohome-secret-change-in-production') {
@@ -122,6 +122,22 @@ io.on('connection', (socket) => {
       io.to(`route:${routeId}`).emit('passenger_checked_in', { bookingId, passengerName: `${booking.first_name} ${booking.last_name}`, seat: booking.seat_number });
       for (const [sid, info] of connectedUsers.entries()) {
         if (info.userId === booking.uid) io.to(sid).emit('new_notification', { title: 'Checked In', body: 'You have been checked in!' });
+      }
+      // Email guardians with check-in notifications enabled
+      const route = await get(`SELECT route_number, from_city, to_city, departure_time FROM routes WHERE id=$1`, [routeId]);
+      if (route) {
+        const guardians = await all(`SELECT name, email FROM guardians WHERE passenger_id=$1 AND email IS NOT NULL AND email != '' AND checkin_notifs=1`, [booking.uid]);
+        for (const g of guardians) {
+          sendEmail(g.email, `Check-in Notification — ${route.route_number}`, guardianCheckinHTML({
+            guardianName: g.name,
+            passengerName: `${booking.first_name} ${booking.last_name}`,
+            routeNumber: route.route_number,
+            from: route.from_city,
+            to: route.to_city,
+            time: route.departure_time,
+            seatNumber: booking.seat_number
+          }));
+        }
       }
     } catch (e) { console.error('[socket] checkin:', e.message); }
   });

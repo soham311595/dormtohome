@@ -252,7 +252,7 @@ router.get('/guardians', authMiddleware, requireRole('passenger'), async (req, r
 
 router.post('/guardians', authMiddleware, requireRole('passenger'), async (req, res) => {
   try {
-    const { name, email, phone, checkpoint_notifs } = req.body;
+    const { name, email, phone, checkpoint_notifs, checkin_notifs } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ error: 'Guardian name is required' });
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (email && email.trim() && !emailRegex.test(email.trim()))
@@ -263,9 +263,9 @@ router.post('/guardians', authMiddleware, requireRole('passenger'), async (req, 
         return res.status(400).json({ error: 'Invalid guardian phone number' });
     }
     const id = uuidv4();
-    await run('INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs) VALUES ($1,$2,$3,$4,$5,$6)',
-      [id, req.user.id, name, email||'', phone||'', checkpoint_notifs ? 1 : 0]);
-    res.json({ id, name, email, phone, checkpoint_notifs });
+    await run('INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs,checkin_notifs) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+      [id, req.user.id, name, email||'', phone||'', checkpoint_notifs ? 1 : 0, checkin_notifs ? 1 : 0]);
+    res.json({ id, name, email, phone, checkpoint_notifs, checkin_notifs });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -278,13 +278,14 @@ router.delete('/guardians/:id', authMiddleware, requireRole('passenger'), async 
 
 router.patch('/guardians/:id', authMiddleware, requireRole('passenger'), async (req, res) => {
   try {
-    const { name, email, phone, checkpoint_notifs } = req.body;
+    const { name, email, phone, checkpoint_notifs, checkin_notifs } = req.body;
     await run(
       `UPDATE guardians SET
        name=COALESCE($1,name), email=COALESCE($2,email), phone=COALESCE($3,phone),
-       checkpoint_notifs=COALESCE($4,checkpoint_notifs)
-       WHERE id=$5 AND passenger_id=$6`,
-      [name, email, phone, checkpoint_notifs != null ? (checkpoint_notifs ? 1 : 0) : null, req.params.id, req.user.id]
+       checkpoint_notifs=COALESCE($4,checkpoint_notifs),
+       checkin_notifs=COALESCE($5,checkin_notifs)
+       WHERE id=$6 AND passenger_id=$7`,
+      [name, email, phone, checkpoint_notifs != null ? (checkpoint_notifs ? 1 : 0) : null, checkin_notifs != null ? (checkin_notifs ? 1 : 0) : null, req.params.id, req.user.id]
     );
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }

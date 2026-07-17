@@ -72,4 +72,15 @@ function guardianCheckpointHTML({ guardianName, routeNumber, from, to, city, est
 <p>— DormToHome Team</p>`;
 }
 
-module.exports = { sendEmail, bookingConfirmationHTML, newBookingAlertHTML, guardianCheckpointHTML };
+function guardianCheckinHTML({ guardianName, passengerName, routeNumber, from, to, time, seatNumber }) {
+  return `
+<h2>Check-in Notification</h2>
+<p>Hi ${guardianName},</p>
+<p>Your passenger <strong>${passengerName}</strong> has checked in and boarded the bus for route <strong>${routeNumber}</strong> (${from} → ${to}).</p>
+<p><strong>Departure time:</strong> ${time}</p>
+<p><strong>Seat:</strong> ${seatNumber}</p>
+<p>Your passenger is on the bus and the journey has begun.</p>
+<p>— DormToHome Team</p>`;
+}
+
+module.exports = { sendEmail, bookingConfirmationHTML, newBookingAlertHTML, guardianCheckpointHTML, guardianCheckinHTML };

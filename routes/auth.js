@@ -14,7 +14,7 @@ const getSecret = (req) =>
 router.post('/register', async (req, res) => {
   try {
     const { first_name, last_name, email, phone, password, role,
-            guardian_name, guardian_email, guardian_phone, checkpoint_notifs } = req.body;
+            guardian_name, guardian_email, guardian_phone, checkpoint_notifs, checkin_notifs } = req.body;
     if (!first_name || !last_name || !email || !password || !role)
       return res.status(400).json({ error: 'Missing required fields' });
     if (!['passenger','driver'].includes(role))
@@ -53,8 +53,8 @@ router.post('/register', async (req, res) => {
     );
 
     if (role === 'passenger' && (guardian_email || guardian_phone)) {
-      await run(`INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs) VALUES ($1,$2,$3,$4,$5,$6)`,
-        [uuidv4(), userId, guardian_name || 'Guardian', guardian_email || '', guardian_phone || '', checkpoint_notifs ? 1 : 0]);
+      await run(`INSERT INTO guardians (id,passenger_id,name,email,phone,checkpoint_notifs,checkin_notifs) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [uuidv4(), userId, guardian_name || 'Guardian', guardian_email || '', guardian_phone || '', checkpoint_notifs ? 1 : 0, checkin_notifs ? 1 : 0]);
     }
 
     console.log('[REGISTER] Success for:', trimmedEmail);
