@@ -83,4 +83,13 @@ function guardianCheckinHTML({ guardianName, passengerName, routeNumber, from, t
 <p>— DormToHome Team</p>`;
 }
 
-module.exports = { sendEmail, bookingConfirmationHTML, newBookingAlertHTML, guardianCheckpointHTML, guardianCheckinHTML };
+function guardianDriverUpdateHTML({ guardianName, passengerName, routeNumber, from, to, message }) {
+  return `
+<h2>Driver Update — ${routeNumber}</h2>
+<p>Hi ${guardianName},</p>
+<p>There is an update from the driver of route <strong>${routeNumber}</strong> (${from} → ${to}) regarding your passenger <strong>${passengerName}</strong>:</p>
+<p style="background:#f0ede6;padding:14px;border-radius:10px;font-size:15px;margin:14px 0">${message}</p>
+<p>— DormToHome Team</p>`;
+}
+
+module.exports = { sendEmail, bookingConfirmationHTML, newBookingAlertHTML, guardianCheckpointHTML, guardianCheckinHTML, guardianDriverUpdateHTML };

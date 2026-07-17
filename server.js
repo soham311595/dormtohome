@@ -7,7 +7,7 @@ const path = require('path');
 const jwt = require('jsonwebtoken');
 const { initDatabase, all, get, run } = require('./db/database');
 const { v4: uuidv4 } = require('uuid');
-const { sendEmail, guardianCheckpointHTML, guardianCheckinHTML } = require('./utils/email');
+const { sendEmail, guardianCheckpointHTML, guardianCheckinHTML, guardianDriverUpdateHTML } = require('./utils/email');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dormtohome-secret-change-in-production';
 if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'dormtohome-secret-change-in-production') {
@@ -145,11 +145,25 @@ io.on('connection', (socket) => {
   socket.on('driver_broadcast', async ({ routeId, message }) => {
     if (user.role !== 'driver') return;
     try {
-      const passengers = await all(`SELECT DISTINCT b.passenger_id FROM bookings b WHERE b.route_id=$1`, [routeId]);
+      const passengers = await all(`SELECT DISTINCT b.passenger_id, u.first_name, u.last_name FROM bookings b JOIN users u ON b.passenger_id=u.id WHERE b.route_id=$1`, [routeId]);
+      const routeInfo = await get(`SELECT route_number, from_city, to_city FROM routes WHERE id=$1`, [routeId]);
       for (const p of passengers) {
         await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`, [uuidv4(), p.passenger_id, 'Driver Update', message, 'alert']);
         for (const [sid, info] of connectedUsers.entries()) {
           if (info.userId === p.passenger_id) io.to(sid).emit('new_notification', { title: 'Driver Update', body: message });
+        }
+        if (routeInfo) {
+          const guardians = await all(`SELECT name, email FROM guardians WHERE passenger_id=$1 AND email IS NOT NULL AND email != ''`, [p.passenger_id]);
+          for (const g of guardians) {
+            sendEmail(g.email, `Driver Update — ${routeInfo.route_number}`, guardianDriverUpdateHTML({
+              guardianName: g.name,
+              passengerName: `${p.first_name} ${p.last_name}`,
+              routeNumber: routeInfo.route_number,
+              from: routeInfo.from_city,
+              to: routeInfo.to_city,
+              message
+            }));
+          }
         }
       }
       const id = uuidv4();

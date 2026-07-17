@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { all, get, run } = require('../db/database');
 const { generateToken } = require('../db/database');
 const { authMiddleware, requireRole, optionalAuth } = require('../middleware/auth');
-const { sendEmail, bookingConfirmationHTML, newBookingAlertHTML } = require('../utils/email');
+const { sendEmail, bookingConfirmationHTML, newBookingAlertHTML, guardianDriverUpdateHTML } = require('../utils/email');
 
 // ── BOOKINGS ──────────────────────────────────────────────
 
@@ -330,13 +330,24 @@ router.post('/driver-notification', authMiddleware, requireRole('driver'), async
   try {
     const { route_id, message } = req.body;
     if (!route_id || !message) return res.status(400).json({ error: 'Missing fields' });
-    const route = await get('SELECT driver_id FROM routes WHERE id=$1', [route_id]);
+    const route = await get('SELECT driver_id, route_number, from_city, to_city FROM routes WHERE id=$1', [route_id]);
     if (!route) return res.status(404).json({ error: 'Route not found' });
     if (route.driver_id !== req.user.id) return res.status(403).json({ error: 'Not your route' });
-    const passengers = await all(`SELECT DISTINCT b.passenger_id FROM bookings b WHERE b.route_id=$1`, [route_id]);
+    const passengers = await all(`SELECT DISTINCT b.passenger_id, u.first_name, u.last_name FROM bookings b JOIN users u ON b.passenger_id=u.id WHERE b.route_id=$1`, [route_id]);
     for (const p of passengers) {
       await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`,
         [uuidv4(), p.passenger_id, 'Driver Update', message, 'alert']);
+      const guardians = await all(`SELECT name, email FROM guardians WHERE passenger_id=$1 AND email IS NOT NULL AND email != ''`, [p.passenger_id]);
+      for (const g of guardians) {
+        sendEmail(g.email, `Driver Update — ${route.route_number}`, guardianDriverUpdateHTML({
+          guardianName: g.name,
+          passengerName: `${p.first_name} ${p.last_name}`,
+          routeNumber: route.route_number,
+          from: route.from_city,
+          to: route.to_city,
+          message
+        }));
+      }
     }
     await run(`INSERT INTO messages (id,route_id,sender_id,content,message_type) VALUES ($1,$2,$3,$4,'notification')`,
       [uuidv4(), route_id, req.user.id, `📢 ${message}`]);
