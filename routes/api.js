@@ -43,6 +43,9 @@ router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, r
     const route = await get('SELECT * FROM routes WHERE id=$1', [route_id]);
     if (!route) return res.status(404).json({ error: 'Route not found' });
 
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ error: 'Payment system not configured' });
+    }
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
     let paymentIntent;
     try {

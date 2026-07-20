@@ -3,7 +3,15 @@ const router = express.Router();
 const { get, run, pool } = require('../db/database');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+let stripeInstance = null;
+function getStripe() {
+  if (!stripeInstance) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw new Error('Stripe is not configured (STRIPE_SECRET_KEY missing)');
+    stripeInstance = require('stripe')(key);
+  }
+  return stripeInstance;
+}
 
 router.post('/payments/create-intent', authMiddleware, requireRole('passenger'), async (req, res) => {
   try {
@@ -21,7 +29,7 @@ router.post('/payments/create-intent', authMiddleware, requireRole('passenger'),
     const amount = Math.round(parseFloat(route.price_per_seat) * 100);
     if (amount <= 0) return res.status(400).json({ error: 'Invalid price' });
 
-    const paymentIntent = await stripe.paymentIntents.create({
+    const paymentIntent = await getStripe().paymentIntents.create({
       amount,
       currency: 'usd',
       metadata: {
@@ -43,12 +51,12 @@ router.post('/payments/refund', authMiddleware, requireRole('passenger'), async 
     const { payment_intent_id } = req.body;
     if (!payment_intent_id) return res.status(400).json({ error: 'Missing payment_intent_id' });
 
-    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    const paymentIntent = await getStripe().paymentIntents.retrieve(payment_intent_id);
     if (paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'requires_capture') {
       return res.status(400).json({ error: 'Payment cannot be refunded' });
     }
 
-    const refund = await stripe.refunds.create({ payment_intent: payment_intent_id });
+    const refund = await getStripe().refunds.create({ payment_intent: payment_intent_id });
     res.json({ success: true, refund_id: refund.id });
   } catch (e) {
     res.status(500).json({ error: e.message });
