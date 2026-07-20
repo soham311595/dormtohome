@@ -866,6 +866,16 @@ function selectSeat(sid) {
   document.getElementById('seat-selected-info').innerHTML = `<strong>Seat ${sid}</strong> selected – ready to confirm!`;
 }
 
+let stripeInstance = null;
+let paymentInProgress = false;
+
+async function getStripe() {
+  if (stripeInstance) return stripeInstance;
+  const config = await fetch('/api/config/stripe-key').then(r => r.json());
+  stripeInstance = Stripe(config.publishableKey);
+  return stripeInstance;
+}
+
 async function confirmBooking() {
   if (!S.selectedSeat) { toast('Please select a seat', 'error'); return; }
   const dest = document.getElementById('dest-stop-select')?.value;
@@ -874,13 +884,113 @@ async function confirmBooking() {
     if (errEl) errEl.textContent = 'Please select where you are getting off';
     return;
   }
+  if (paymentInProgress) return;
+  paymentInProgress = true;
   try {
-    const res = await api('POST', '/bookings', { route_id: S.currentRoute.id, seat_number: S.selectedSeat, booking_type: 'seat', destination_stop: dest });
-    closeModal('modal-seats');
-    toast(`Booking confirmed! Seat ${S.selectedSeat} on ${S.currentRoute.route_number}`, 'success');
-    S.selectedSeat = null;
-    if (S.pTab === 'tickets') pTab('tickets');
-  } catch (e) { toast(e.message, 'error'); }
+    const pi = await api('POST', '/payments/create-intent', {
+      route_id: S.currentRoute.id,
+      seat_number: S.selectedSeat,
+      destination_stop: dest,
+    });
+    S.paymentClientSecret = pi.client_secret;
+    S.paymentAmount = pi.amount / 100;
+    showPaymentModal();
+  } catch (e) {
+    toast(e.message, 'error');
+    paymentInProgress = false;
+  }
+}
+
+function showPaymentModal() {
+  const route = S.currentRoute;
+  const amount = S.paymentAmount;
+  document.getElementById('modal-payment-body').innerHTML = `
+    <div style="margin-bottom:20px">
+      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--navy)">$${Number(amount).toFixed(2)}</div>
+      <div class="text-sm text-muted" style="margin-top:4px">${route.from_city} → ${route.to_city} · ${route.route_number} · Seat ${S.selectedSeat}</div>
+    </div>
+    <hr class="divider" style="margin:16px 0">
+    <div style="margin-bottom:16px">
+      <div class="form-label" style="color:var(--navy);font-size:.82rem;font-weight:600;margin-bottom:8px">Card Details</div>
+      <div id="card-element" style="background:var(--gray-100);border:1px solid var(--gray-200);border-radius:8px;padding:12px 14px"></div>
+      <div id="card-err" style="color:var(--error);font-size:.78rem;margin-top:8px;display:none"></div>
+    </div>
+    <hr class="divider" style="margin:16px 0">
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-navy btn-full btn-lg" onclick="closePaymentModal()">Cancel</button>
+      <button class="btn btn-gold btn-full btn-lg" id="pay-btn" onclick="processPayment()">Pay $${Number(amount).toFixed(2)}</button>
+    </div>
+    <div style="margin-top:12px;font-size:.72rem;color:var(--gray-400);text-align:center">Test card: 4242 4242 4242 4242 · Any expiry/CVC</div>
+  `;
+  openModal('modal-payment');
+  getStripe().then(stripe => {
+    const elements = stripe.elements({ clientSecret: S.paymentClientSecret });
+    const cardElement = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '16px',
+          fontFamily: 'DM Sans, sans-serif',
+          color: '#0B1D3A',
+          '::placeholder': { color: '#9E9585' },
+        },
+      },
+    });
+    cardElement.mount('#card-element');
+    S.cardElement = cardElement;
+  });
+}
+
+async function processPayment() {
+  const btn = document.getElementById('pay-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  document.getElementById('card-err').style.display = 'none';
+  try {
+    const stripe = await getStripe();
+    const { error, paymentIntent } = await stripe.confirmCardPayment(S.paymentClientSecret, {
+      payment_method: { card: S.cardElement },
+    });
+    if (error) {
+      const errEl = document.getElementById('card-err');
+      errEl.textContent = error.message;
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Try Again';
+      return;
+    }
+    if (paymentIntent.status === 'succeeded') {
+      const dest = document.getElementById('dest-stop-select')?.value || '';
+      const res = await api('POST', '/bookings', {
+        route_id: S.currentRoute.id,
+        seat_number: S.selectedSeat,
+        booking_type: 'seat',
+        destination_stop: dest,
+        payment_intent_id: paymentIntent.id,
+      });
+      closeModal('modal-payment');
+      closeModal('modal-seats');
+      toast(`Booking confirmed! Seat ${S.selectedSeat} on ${S.currentRoute.route_number}`, 'success');
+      S.selectedSeat = null;
+      S.paymentClientSecret = null;
+      S.cardElement = null;
+      paymentInProgress = false;
+      if (S.pTab === 'tickets') pTab('tickets');
+    }
+  } catch (e) {
+    const errEl = document.getElementById('card-err');
+    errEl.textContent = e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Try Again';
+  }
+}
+
+function closePaymentModal() {
+  S.paymentClientSecret = null;
+  S.cardElement = null;
+  paymentInProgress = false;
+  closeModal('modal-payment');
 }
 
 // ─── ACTIVE TRIPS ────────────────────────────────────────

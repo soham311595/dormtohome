@@ -33,8 +33,9 @@ router.get('/bookings/taken/:routeId', async (req, res) => {
 
 router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, res) => {
   try {
-    const { route_id, seat_number, booking_type } = req.body;
+    const { route_id, seat_number, booking_type, destination_stop, payment_intent_id } = req.body;
     if (!route_id || !seat_number) return res.status(400).json({ error: 'Missing fields' });
+    if (!payment_intent_id) return res.status(400).json({ error: 'Payment required' });
 
     if (await get('SELECT id FROM bookings WHERE route_id=$1 AND seat_number=$2', [route_id, seat_number]))
       return res.status(409).json({ error: 'Seat already taken' });
@@ -42,17 +43,37 @@ router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, r
     const route = await get('SELECT * FROM routes WHERE id=$1', [route_id]);
     if (!route) return res.status(404).json({ error: 'Route not found' });
 
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    let paymentIntent;
+    try {
+      paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid payment intent' });
+    }
+    if (paymentIntent.status !== 'succeeded') {
+      return res.status(400).json({ error: 'Payment has not been completed' });
+    }
+    if (paymentIntent.metadata.route_id !== route_id || paymentIntent.metadata.seat_number !== seat_number) {
+      await stripe.refunds.create({ payment_intent: payment_intent_id });
+      return res.status(400).json({ error: 'Payment intent mismatch' });
+    }
+
     const amount = booking_type === 'package' ? route.package_price : route.price_per_seat;
     const id = uuidv4();
     const ticketToken = generateToken();
-    await run(
-      `INSERT INTO bookings (id,route_id,passenger_id,seat_number,checkin_status,booking_type,amount_paid,ticket_token) VALUES ($1,$2,$3,$4,'pending',$5,$6,$7)`,
-      [id, route_id, req.user.id, seat_number, booking_type||'seat', amount, ticketToken]
-    );
+    try {
+      await run(
+        `INSERT INTO bookings (id,route_id,passenger_id,seat_number,destination_stop,checkin_status,booking_type,amount_paid,ticket_token,payment_intent_id) VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9)`,
+        [id, route_id, req.user.id, seat_number, destination_stop||'', booking_type||'seat', amount, ticketToken, payment_intent_id]
+      );
+    } catch (e) {
+      await stripe.refunds.create({ payment_intent: payment_intent_id });
+      return res.status(500).json({ error: 'Booking creation failed, payment refunded' });
+    }
+
     await run(`INSERT INTO notifications (id,user_id,title,body,"type") VALUES ($1,$2,$3,$4,$5)`,
       [uuidv4(), req.user.id, 'Booking Confirmed!', `Seat ${seat_number} booked successfully.`, 'success']);
 
-    // Send booking confirmation to passenger
     const driver = await get('SELECT first_name, last_name, email FROM users WHERE id=$1', [route.driver_id]);
     const driverName = driver ? `${driver.first_name} ${driver.last_name}` : 'TBD';
     sendEmail(req.user.email, 'Booking Confirmed — DormToHome', bookingConfirmationHTML({
@@ -67,7 +88,6 @@ router.post('/bookings', authMiddleware, requireRole('passenger'), async (req, r
       amount,
     }));
 
-    // New booking alert to driver
     if (driver && driver.email) {
       sendEmail(driver.email, 'New Booking Alert — DormToHome', newBookingAlertHTML({
         passengerName: `${req.user.first_name} ${req.user.last_name}`,

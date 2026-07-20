@@ -98,6 +98,8 @@ async function createSchema() {
     ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS address TEXT;
     ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id TEXT DEFAULT NULL;
     ALTER TABLE guardians ADD COLUMN IF NOT EXISTS checkin_notifs INTEGER DEFAULT 0;
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS destination_stop TEXT DEFAULT '';
+    ALTER TABLE bookings ADD COLUMN IF NOT EXISTS payment_intent_id TEXT DEFAULT '';
 
     CREATE TABLE IF NOT EXISTS bookings (
       id TEXT PRIMARY KEY,

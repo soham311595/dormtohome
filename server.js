@@ -41,6 +41,7 @@ app.post('/api/auth/register', signupLimiter);
 app.use('/api/auth', authRouter);
 app.use('/api/routes', require('./routes/routes'));
 app.use('/api', require('./routes/api'));
+app.use('/api', require('./routes/payments'));
 app.post('/dev/seed-test-users', async (req, res) => {
   const devToken = req.headers['x-dev-token'] || '';
   if (devToken !== (process.env.DEV_TOKEN || 'devtoken123')) {
