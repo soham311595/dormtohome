@@ -2013,7 +2013,7 @@ function recalcStopDuration() {
   const allRows = document.querySelectorAll('#create-stops-list > div, #create-cp-list > div');
   const note = document.getElementById('stop-duration-note');
   if (!note) return;
-  const baseDuration = S.createData.duration;
+  const baseDuration = S.createData.base_duration || S.createData.duration;
   let baseMin = 0;
   if (baseDuration) {
     const m = baseDuration.match(/(\d+)h\s*(\d+)?m?/);
@@ -2149,6 +2149,8 @@ function createNext() {
       ok = false;
     }
     if (!ok) return;
+    S.createData.base_duration = S.createData.duration;
+    S.createData.base_arrival_time = S.createData.arrival_time;
   }
   if (S.createStep === 3) {
     const price = parseFloat(document.getElementById('cr-price')?.value);
@@ -2169,6 +2171,10 @@ function createNext() {
 }
 function createBack() {
   collectCreateData();
+  if (S.createStep === 2) {
+    S.createData.duration = S.createData.base_duration || S.createData.duration;
+    S.createData.arrival_time = S.createData.base_arrival_time || S.createData.arrival_time;
+  }
   S.createStep = Math.max(1, S.createStep - 1);
   renderCreateRoute();
 }
