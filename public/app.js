@@ -1938,7 +1938,7 @@ function buildCreateStep() {
       </div>
     </div>
     <div class="two-col">
-      <div class="form-group"><label class="form-label" style="color:var(--navy)">Departure Date</label><input class="form-input" type="date" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-date" value="${d.departure_date || ''}"></div>
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Departure Date</label><input class="form-input" type="date" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-date" value="${d.departure_date || ''}"><div id="cr-date-err" style="color:var(--error);font-size:.75rem;margin-top:4px"></div></div>
       <div class="form-group"><label class="form-label" style="color:var(--navy)">Departure Time</label><input class="form-input" type="time" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-dep-time" value="${d.departure_time || '08:00'}" oninput="updateCreateArrival()"></div>
     </div>
     <div class="two-col">
@@ -2385,6 +2385,25 @@ function createNext() {
       const err = document.getElementById('cr-to-err');
       if (err) err.textContent = 'Please select a city from the dropdown';
       ok = false;
+    }
+    const dateVal = document.getElementById('cr-date')?.value;
+    const timeVal = document.getElementById('cr-dep-time')?.value;
+    if (dateVal) {
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      if (dateVal < todayStr) {
+        const err = document.getElementById('cr-date-err');
+        if (err) err.textContent = 'Cannot create a route in the past';
+        ok = false;
+      } else if (dateVal === todayStr && timeVal) {
+        const [th, tm] = timeVal.split(':').map(Number);
+        const depDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), th, tm);
+        if (depDate <= now) {
+          const err = document.getElementById('cr-date-err');
+          if (err) err.textContent = 'Departure time has already passed today';
+          ok = false;
+        }
+      }
     }
     if (!ok) return;
     S.createData.base_duration = S.createData.duration;
