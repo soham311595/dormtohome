@@ -1852,7 +1852,7 @@ function renderCreateRoute() {
 }
 
 let reviewMap = null;
-function initReviewMap() {
+async function initReviewMap() {
   const el = document.getElementById('cr-review-map');
   if (!el || typeof L === 'undefined') return;
   if (reviewMap) { reviewMap.remove(); reviewMap = null; }
@@ -1870,33 +1870,53 @@ function initReviewMap() {
     html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700">${label}</div>`,
     iconSize: [28, 28], iconAnchor: [14, 14], className: ''
   });
-  const waypoints = [[fromCoords.lat, fromCoords.lon]];
-  L.marker(waypoints[0], { icon: icon(green, 'A') }).addTo(reviewMap).bindPopup(`<b>From:</b> ${d.from_city}`);
+  const wpAll = [{ lat: fromCoords.lat, lon: fromCoords.lon, label: 'A', color: green, popup: `<b>From:</b> ${d.from_city}`, type: 'origin' }];
   const stops = (d.stops || []).filter(s => s.city);
   for (const s of stops) {
     const sc = CITY_COORDS[stripCityState(s.city)];
-    if (sc) {
-      const pos = [sc.lat, sc.lon];
-      waypoints.push(pos);
-      L.marker(pos, { icon: icon(gold, 'S') }).addTo(reviewMap).bindPopup(`<b>Stop:</b> ${s.city}`);
-    }
+    if (sc) wpAll.push({ lat: sc.lat, lon: sc.lon, label: 'S', color: gold, popup: `<b>Stop:</b> ${s.city}`, type: 'stop' });
   }
   const checkpoints = (d.checkpoints || []).filter(c => c.city);
   for (const cp of checkpoints) {
     const cc = CITY_COORDS[stripCityState(cp.city)];
-    if (cc) {
-      const pos = [cc.lat, cc.lon];
-      waypoints.push(pos);
-      L.marker(pos, { icon: icon('#7C3AED', 'C') }).addTo(reviewMap).bindPopup(`<b>Checkpoint:</b> ${cp.city}`);
+    if (cc) wpAll.push({ lat: cc.lat, lon: cc.lon, label: 'C', color: '#7C3AED', popup: `<b>Checkpoint:</b> ${cp.city}`, type: 'checkpoint' });
+  }
+  wpAll.push({ lat: toCoords.lat, lon: toCoords.lon, label: 'B', color: navy, popup: `<b>To:</b> ${d.to_city}`, type: 'dest' });
+  const midPoints = wpAll.filter(w => w.type !== 'origin' && w.type !== 'dest');
+  if (midPoints.length > 1) {
+    const dx = toCoords.lon - fromCoords.lon;
+    const dy = toCoords.lat - fromCoords.lat;
+    const len2 = dx * dx + dy * dy;
+    midPoints.sort((a, b) => {
+      const tA = ((a.lon - fromCoords.lon) * dx + (a.lat - fromCoords.lat) * dy) / len2;
+      const tB = ((b.lon - fromCoords.lon) * dx + (b.lat - fromCoords.lat) * dy) / len2;
+      return tA - tB;
+    });
+    wpAll.length = 0;
+    wpAll.push({ lat: fromCoords.lat, lon: fromCoords.lon, label: 'A', color: green, popup: `<b>From:</b> ${d.from_city}`, type: 'origin' });
+    for (const m of midPoints) wpAll.push(m);
+    wpAll.push({ lat: toCoords.lat, lon: toCoords.lon, label: 'B', color: navy, popup: `<b>To:</b> ${d.to_city}`, type: 'dest' });
+  }
+  for (const w of wpAll) {
+    L.marker([w.lat, w.lon], { icon: icon(w.color, w.label) }).addTo(reviewMap).bindPopup(w.popup);
+  }
+  try {
+    const coordsParam = wpAll.map(w => `${w.lon},${w.lat}`).join(';');
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${coordsParam}?overview=full&geometries=geojson`);
+    const data = await res.json();
+    if (data.code === 'Ok' && data.routes && data.routes[0] && data.routes[0].geometry) {
+      const geom = data.routes[0].geometry;
+      L.geoJSON(geom, { style: { color: gold, weight: 5, opacity: 0.85 } }).addTo(reviewMap);
+      const allCoords = geom.coordinates.map(c => [c[1], c[0]]);
+      reviewMap.fitBounds(L.latLngBounds(allCoords), { padding: [30, 30] });
+      return;
     }
+  } catch (e) { /* fallback below */ }
+  const fallbackCoords = wpAll.map(w => [w.lat, w.lon]);
+  if (fallbackCoords.length >= 2) {
+    L.polyline(fallbackCoords, { color: gold, weight: 4, opacity: 0.8 }).addTo(reviewMap);
   }
-  waypoints.push([toCoords.lat, toCoords.lon]);
-  L.marker(waypoints[waypoints.length - 1], { icon: icon(navy, 'B') }).addTo(reviewMap).bindPopup(`<b>To:</b> ${d.to_city}`);
-  if (waypoints.length >= 2) {
-    L.polyline(waypoints, { color: gold, weight: 4, opacity: 0.8, dashArray: '8,8' }).addTo(reviewMap);
-  }
-  const bounds = L.latLngBounds(waypoints);
-  reviewMap.fitBounds(bounds, { padding: [30, 30] });
+  reviewMap.fitBounds(L.latLngBounds(fallbackCoords), { padding: [30, 30] });
 }
 
 function buildCreateRoutePage() {
