@@ -636,7 +636,24 @@ test.describe.serial('DormToHome E2E Tests', () => {
 
     // Step 3: Seats & Pricing
     await expect(driver.getByText('Seats & Pricing')).toBeVisible({ timeout: 3000 });
+    // Both price inputs should exist
+    await expect(page.locator('#cr-price')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#cr-org-price')).toBeVisible({ timeout: 3000 });
+    // Stripe fee breakdown should be visible
+    await expect(page.locator('#cr-stripe-fee')).toBeVisible({ timeout: 3000 });
+    // Fill passenger price and verify organizer price auto-updates
     await page.fill('#cr-price', '35');
+    await page.waitForTimeout(200);
+    const orgVal = await page.locator('#cr-org-price').inputValue();
+    expect(parseFloat(orgVal)).toBeCloseTo(33.69, 0);
+    // Fill organizer price and verify passenger price auto-updates
+    await page.fill('#cr-org-price', '20');
+    await page.waitForTimeout(200);
+    const ppVal = await page.locator('#cr-price').inputValue();
+    expect(parseFloat(ppVal)).toBeCloseTo(20.91, 0);
+    // Set final price and proceed
+    await page.fill('#cr-price', '35');
+    await page.waitForTimeout(200);
     await driver.locator('button', { hasText: 'Review' }).click();
 
     // Step 4: Review & Post
@@ -851,5 +868,70 @@ test.describe.serial('DormToHome E2E Tests', () => {
     }));
     expect(result.step).toBe(1);
     expect(result.errText).toContain('Please select a city from the dropdown');
+  });
+
+  // ─── TEST 14: PRICING BREAKDOWN ─────────────────────────
+
+  test('Test 14: Dual pricing inputs and live calculation', async () => {
+    test.setTimeout(60000);
+
+    // Sign in as driver
+    await page.locator('#screen-landing button', { hasText: 'Sign In' }).click();
+    await expect(page.locator('#screen-login')).toBeVisible({ timeout: 5000 });
+    await page.fill('#login-email', 'marcus@dormtohome.com');
+    await page.fill('#login-pass', 'password123');
+    await page.locator('#login-btn').click();
+    await expect(page.locator('#screen-driver')).toBeVisible({ timeout: 12000 });
+
+    const driver = page.locator('#screen-driver');
+
+    // Open route creation wizard
+    await driver.locator('[data-tab="create"]').click();
+    await expect(driver.getByText('Create New Route')).toBeVisible({ timeout: 5000 });
+
+    // Fill Step 1 minimally and advance
+    await page.fill('#cr-from', 'College Station, TX');
+    await page.fill('#cr-to', 'Dallas, TX');
+    await page.fill('#cr-date', '2026-08-01');
+    await page.fill('#cr-dep-time', '08:00');
+    await page.fill('#cr-duration', '3h 30m');
+    await driver.locator('button', { hasText: 'Next: Stops' }).click();
+
+    // Advance past Step 2
+    await expect(driver.getByText('Stops & Checkpoints')).toBeVisible({ timeout: 3000 });
+    await driver.locator('button', { hasText: 'Next: Seats' }).click();
+
+    // Step 3: Verify both price boxes exist
+    await expect(driver.getByText('Seats & Pricing')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('#cr-price')).toBeVisible();
+    await expect(page.locator('#cr-org-price')).toBeVisible();
+    await expect(page.locator('#cr-stripe-fee')).toBeVisible();
+
+    // Test: Editing passenger price updates organizer price
+    await page.fill('#cr-price', '50');
+    await page.waitForTimeout(200);
+    let orgVal = await page.locator('#cr-org-price').inputValue();
+    expect(parseFloat(orgVal)).toBeCloseTo(48.25, 0);
+
+    // Test: Editing organizer price updates passenger price
+    await page.fill('#cr-org-price', '10');
+    await page.waitForTimeout(200);
+    let ppVal = await page.locator('#cr-price').inputValue();
+    expect(parseFloat(ppVal)).toBeCloseTo(10.61, 0);
+
+    // Test: Stripe fee text updates
+    const feeText = await page.locator('#cr-stripe-fee').textContent();
+    expect(feeText).toMatch(/Stripe fee: \$\d+\.\d{2}/);
+
+    // Test: Negative values should not propagate
+    await page.fill('#cr-price', '-5');
+    await page.waitForTimeout(200);
+    orgVal = await page.locator('#cr-org-price').inputValue();
+    // negative or zero should result in empty organizer price
+    expect(orgVal === '' || parseFloat(orgVal) <= 0).toBe(true);
+
+    // Cancel — go back to routes
+    await driver.locator('[data-tab="routes"]').click();
+    await waitForSpinner();
   });
 });

@@ -1700,6 +1700,7 @@ function buildDriverRoutesPage(routes) {
 // ─── DRIVER: CREATE ROUTE ────────────────────────────────
 function renderCreateRoute() {
   document.getElementById('d-content').innerHTML = buildCreateRoutePage();
+  if (S.createStep === 3) setTimeout(() => calcOrganizerPrice(), 0);
 }
 
 function buildCreateRoutePage() {
@@ -1770,8 +1771,12 @@ function buildCreateStep() {
     <div class="section-title">Seats & Pricing</div>
     <div class="two-col">
       <div class="form-group"><label class="form-label" style="color:var(--navy)">Total Seats</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-seats" placeholder="44" value="${d.total_seats || 44}"></div>
-      <div class="form-group"><label class="form-label" style="color:var(--navy)">Price Per Seat ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-price" placeholder="28" value="${d.price_per_seat || ''}"><div class="text-xs text-danger" id="cr-price-err"></div></div>
     </div>
+    <div class="two-col">
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Passenger pays per seat ($)</label><input class="form-input" type="number" step="0.01" min="0" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-price" placeholder="28" value="${d.price_per_seat || ''}" oninput="calcOrganizerPrice()"><div class="text-xs text-danger" id="cr-price-err"></div></div>
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">You receive per seat ($)</label><input class="form-input" type="number" step="0.01" min="0" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-org-price" placeholder="26.89" value="" oninput="calcPassengerPrice()"><div class="text-xs text-danger" id="cr-org-price-err"></div></div>
+    </div>
+    <div style="font-size:.75rem;color:var(--gray-500);margin-top:-8px;margin-bottom:12px" id="cr-stripe-fee">Stripe fee: $0.00 (2.9% + $0.30)</div>
     <div class="form-group"><label class="form-label" style="color:var(--navy)">Package Delivery Price ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-pkg" placeholder="15" value="${d.package_price || 15}"></div>
     <div class="form-group"><label class="form-label" style="color:var(--navy)">Notes for Passengers</label><textarea class="form-input" rows="3" style="color:var(--navy-dark);background:var(--gray-100);resize:vertical" id="cr-notes" placeholder="Any extra info...">${d.notes || ''}</textarea></div>
     <div style="display:flex;gap:10px;margin-top:12px">
@@ -2058,6 +2063,42 @@ function recalcStopDuration() {
     : '';
 }
 
+function calcOrganizerPrice() {
+  const pp = parseFloat(document.getElementById('cr-price')?.value);
+  const orgEl = document.getElementById('cr-org-price');
+  const feeEl = document.getElementById('cr-stripe-fee');
+  const errEl = document.getElementById('cr-price-err');
+  if (isNaN(pp) || pp <= 0) {
+    if (orgEl) orgEl.value = '';
+    if (feeEl) feeEl.textContent = 'Stripe fee: $0.00 (2.9% + $0.30)';
+    if (errEl) errEl.textContent = '';
+    return;
+  }
+  const fee = pp * 0.029 + 0.30;
+  const org = Math.round((pp * 0.971 - 0.30) * 100) / 100;
+  if (orgEl) orgEl.value = org > 0 ? org.toFixed(2) : '';
+  if (feeEl) feeEl.textContent = `Stripe fee: $${fee.toFixed(2)} (2.9% + $0.30)`;
+  if (errEl) errEl.textContent = pp < 1 ? 'Minimum passenger price is $1.00 (Stripe minimum)' : '';
+}
+
+function calcPassengerPrice() {
+  const org = parseFloat(document.getElementById('cr-org-price')?.value);
+  const ppEl = document.getElementById('cr-price');
+  const feeEl = document.getElementById('cr-stripe-fee');
+  const errEl = document.getElementById('cr-price-err');
+  if (isNaN(org) || org < 0) {
+    if (ppEl) ppEl.value = '';
+    if (feeEl) feeEl.textContent = 'Stripe fee: $0.00 (2.9% + $0.30)';
+    if (errEl) errEl.textContent = '';
+    return;
+  }
+  const pp = Math.round(((org + 0.30) / 0.971) * 100) / 100;
+  const fee = pp * 0.029 + 0.30;
+  if (ppEl) ppEl.value = pp > 0 ? pp.toFixed(2) : '';
+  if (feeEl) feeEl.textContent = `Stripe fee: $${fee.toFixed(2)} (2.9% + $0.30)`;
+  if (errEl) errEl.textContent = pp < 1 ? 'Minimum passenger price is $1.00 (Stripe minimum)' : '';
+}
+
 function collectCreateData() {
   if (S.createStep === 1) {
     S.createData.from_city = document.getElementById('cr-from')?.value;
@@ -2113,7 +2154,10 @@ function createNext() {
     const price = parseFloat(document.getElementById('cr-price')?.value);
     const err = document.getElementById('cr-price-err');
     if (!price || price <= 0) {
-      if (err) err.textContent = 'Please enter a price per seat';
+      if (err) err.textContent = 'Please enter a passenger price per seat';
+      return;
+    } else if (price < 1) {
+      if (err) err.textContent = 'Minimum passenger price is $1.00 (Stripe minimum)';
       return;
     } else {
       if (err) err.textContent = '';
