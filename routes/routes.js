@@ -320,7 +320,7 @@ router.post('/', authMiddleware, requireRole('driver'), async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15)`,
       [id, `DTH-${nextNum}`, req.user.id, from_city, from_zip||'', to_city, to_zip||'',
        departure_date, departure_time, arrival_time||'', duration||'',
-       total_seats||44, price_per_seat, package_price||15, notes||'']
+       total_seats||44, price_per_seat, package_price||null, notes||'']
     );
     if (Array.isArray(stops)) {
       for (let i = 0; i < stops.length; i++) {

@@ -1993,7 +1993,13 @@ function buildCreateStep() {
       <div class="form-group"><label class="form-label" style="color:var(--navy)">You receive per seat ($)</label><input class="form-input" type="number" step="0.01" min="0" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-org-price" placeholder="26.89" value="" oninput="calcPassengerPrice()"><div class="text-xs text-danger" id="cr-org-price-err"></div></div>
     </div>
     <div style="font-size:.75rem;color:var(--gray-500);margin-top:-8px;margin-bottom:12px" id="cr-stripe-fee">Stripe fee: $0.00 (2.9% + $0.30)</div>
-    <div class="form-group"><label class="form-label" style="color:var(--navy)">Package Delivery Price ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-pkg" placeholder="15" value="${d.package_price || 15}"></div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer" onclick="const chk=document.getElementById('cr-pkg-chk');chk.classList.toggle('checked');togglePkgField()">
+      <div class="checkbox${d.package_price ? ' checked' : ''}" id="cr-pkg-chk"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="2,6 5,9 10,3"/></svg></div>
+      <span style="font-size:.875rem;font-weight:600;color:var(--navy)">Offer Package Delivery</span>
+    </div>
+    <div id="cr-pkg-row" style="display:${d.package_price ? 'block' : 'none'}">
+      <div class="form-group"><label class="form-label" style="color:var(--navy)">Package Delivery Price ($)</label><input class="form-input" type="number" style="color:var(--navy-dark);background:var(--gray-100)" id="cr-pkg" placeholder="15" value="${d.package_price || ''}"></div>
+    </div>
     <div class="form-group"><label class="form-label" style="color:var(--navy)">Notes for Passengers</label><textarea class="form-input" rows="3" style="color:var(--navy-dark);background:var(--gray-100);resize:vertical" id="cr-notes" placeholder="Any extra info...">${d.notes || ''}</textarea></div>
     <div style="display:flex;gap:10px;margin-top:12px">
       <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="createBack()">← Back</button>
@@ -2010,7 +2016,7 @@ function buildCreateStep() {
     <div id="cr-review-map" style="width:100%;height:260px;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1.5px solid var(--gray-200)"></div>
     <div style="background:var(--gray-100);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:14px">Route Preview</div>
-      ${[['From',d.from_city],['To',d.to_city],['Date',fmtDate(d.departure_date)],['Departure',d.departure_time],['Arrival',d.arrival_time],['Duration',d.duration],['Seats',`${d.total_seats} @ $${d.price_per_seat}/seat`]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-200);font-size:.875rem"><span style="color:var(--gray-600)">${k}</span><strong style="color:var(--navy)">${v || '—'}</strong></div>`).join('')}
+      ${[['From',d.from_city],['To',d.to_city],['Date',fmtDate(d.departure_date)],['Departure',d.departure_time],['Arrival',d.arrival_time],['Duration',d.duration],['Seats',`${d.total_seats} @ $${d.price_per_seat}/seat`],...(d.package_price ? [['Package Delivery',`$${d.package_price}`]] : [])].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-200);font-size:.875rem"><span style="color:var(--gray-600)">${k}</span><strong style="color:var(--navy)">${v || '—'}</strong></div>`).join('')}
     </div>
     ${allStops.length ? `<div style="margin-bottom:20px"><div class="section-title">Stops & Checkpoints</div>
       <div style="display:flex;flex-direction:column;gap:6px">
@@ -2385,7 +2391,8 @@ function collectCreateData() {
   if (S.createStep === 3) {
     S.createData.total_seats = parseInt(document.getElementById('cr-seats')?.value) || 44;
     S.createData.price_per_seat = parseFloat(document.getElementById('cr-price')?.value);
-    S.createData.package_price = parseFloat(document.getElementById('cr-pkg')?.value) || 15;
+    const pkgChecked = document.getElementById('cr-pkg-chk')?.classList.contains('checked');
+    S.createData.package_price = pkgChecked ? (parseFloat(document.getElementById('cr-pkg')?.value) || null) : null;
     S.createData.notes = document.getElementById('cr-notes')?.value;
   }
 }
@@ -2480,6 +2487,12 @@ function updateCreateArrival() {
   if (arrEl) arrEl.value = `${String(arr.getHours()).padStart(2, '0')}:${String(arr.getMinutes()).padStart(2, '0')}`;
   const durEl = document.getElementById('cr-duration');
   if (durEl) durEl.value = `${tt.hours}h ${tt.minutes}m`;
+}
+
+function togglePkgField() {
+  const checked = document.getElementById('cr-pkg-chk')?.classList.contains('checked');
+  const row = document.getElementById('cr-pkg-row');
+  if (row) row.style.display = checked ? 'block' : 'none';
 }
 
 // ─── DRIVER: CHECK-IN ────────────────────────────────────

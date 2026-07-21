@@ -78,7 +78,7 @@ async function createSchema() {
       duration TEXT NOT NULL,
       total_seats INTEGER NOT NULL DEFAULT 44,
       price_per_seat NUMERIC NOT NULL,
-      package_price NUMERIC DEFAULT 15,
+      package_price NUMERIC DEFAULT NULL,
       status TEXT DEFAULT 'active' CHECK(status IN ('draft','active','in_progress','completed','cancelled')),
       notes TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -214,7 +214,7 @@ async function seedDatabase() {
   for (const r of routes) {
     await run(
       `INSERT INTO routes (id,route_number,driver_id,from_city,from_zip,to_city,to_zip,departure_date,departure_time,arrival_time,duration,total_seats,price_per_seat,package_price,status,notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,44,$12,15,'active',null)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,44,$12,NULL,'active',null)`,
       [r.id,r.num,r.driver,r.from,r.fz,r.to,r.tz,r.date,r.dep,r.arr,r.dur,r.price]
     );
   }
