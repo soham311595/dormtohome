@@ -1980,17 +1980,31 @@ function buildCreateStep() {
       <button class="btn btn-gold" onclick="createNext()">Review →</button>
     </div>`;
 
-  if (S.createStep === 4) return `
+  if (S.createStep === 4) {
+    const allStops = [
+      ...(d.stops || []).filter(s => s.city).map(s => ({ city: s.city, type: 'stop', time: s.time })),
+      ...(d.checkpoints || []).filter(s => s.city).map(s => ({ city: s.city, type: 'checkpoint', time: s.time }))
+    ].sort((a, b) => a.city.localeCompare(b.city));
+    return `
     <div class="section-title">Review & Post</div>
     <div id="cr-review-map" style="width:100%;height:260px;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1.5px solid var(--gray-200)"></div>
     <div style="background:var(--gray-100);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:14px">Route Preview</div>
       ${[['From',d.from_city],['To',d.to_city],['Date',fmtDate(d.departure_date)],['Departure',d.departure_time],['Arrival',d.arrival_time],['Duration',d.duration],['Seats',`${d.total_seats} @ $${d.price_per_seat}/seat`]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-200);font-size:.875rem"><span style="color:var(--gray-600)">${k}</span><strong style="color:var(--navy)">${v || '—'}</strong></div>`).join('')}
     </div>
+    ${allStops.length ? `<div style="margin-bottom:20px"><div class="section-title">Stops & Checkpoints</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        ${allStops.map(s => `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--gray-100);border-radius:8px;font-size:.875rem">
+          <span style="color:${s.type === 'checkpoint' ? 'var(--gold)' : 'var(--gray-500)'};display:flex;align-items:center;flex-shrink:0">${s.type === 'checkpoint' ? ICON.check() : '●'}</span>
+          <span style="color:var(--navy);font-weight:500;flex:1">${s.city}</span>
+          <span style="font-size:.75rem;color:var(--gray-500)">${s.type === 'checkpoint' ? 'Checkpoint' : 'Stop'}${s.time ? ' · ' + s.time : ''}</span>
+        </div>`).join('')}
+      </div></div>` : ''}
     <div style="display:flex;gap:10px">
       <button class="btn btn-sm" style="background:var(--gray-100);color:var(--navy)" onclick="createBack()">← Edit</button>
       <button class="btn btn-gold btn-full btn-lg" id="post-btn" onclick="postRoute()">Post Route Live</button>
     </div>`;
+  }
 }
 
 function buildStopRow(s, i, isCheckpoint = false) {
@@ -2007,9 +2021,10 @@ function buildStopRow(s, i, isCheckpoint = false) {
     <div style="flex:1;display:flex;flex-direction:column;gap:4px">
       <label style="font-size:.75rem;font-weight:600;color:var(--navy)">${cityLabel}</label>
       <div style="position:relative">
-        <input class="form-input" id="${cityId}" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" placeholder="${cityPlaceholder}" value="${s.city || ''}"${isCheckpoint ? ` onfocus="autocityCheckpoint(this,'${ddId}',true)" oninput="autocityCheckpoint(this,'${ddId}')"` : ` oninput="autocityCreate(this,'${ddId}')"`}>
+        <input class="form-input" id="${cityId}" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" placeholder="${cityPlaceholder}" value="${s.city || ''}"${isCheckpoint ? ` onfocus="autocityCheckpoint(this,'${ddId}',true)" oninput="autocityCheckpoint(this,'${ddId}');updateCpTimeHint(this)"` : ` oninput="autocityCreate(this,'${ddId}')"`}>
         <div class="city-dropdown" id="${ddId}"></div>
-        ${isCheckpoint ? `<div id="${cityId}-warn" style="color:#b45309;font-size:.7rem;margin-top:2px;display:none"></div>` : ''}
+        ${isCheckpoint ? `<div id="${cityId}-warn" style="color:#b45309;font-size:.7rem;margin-top:2px;display:none"></div>
+        <div id="${cityId}-hint" style="font-size:.7rem;color:var(--gray-500);margin-top:2px">${s.city && S.createData.from_city ? (() => { const tt = estimateTravelTime(S.createData.from_city, s.city); return tt && (tt.hours > 0 || tt.minutes > 0) ? `~${tt.hours}h ${tt.minutes}m from start` : ''; })() : ''}</div>` : ''}
       </div>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;gap:4px">
@@ -2032,6 +2047,20 @@ function buildStopRow(s, i, isCheckpoint = false) {
       </div>
     <button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="removeStopRow(this)">✕</button>
   </div>`;
+}
+
+function updateCpTimeHint(input) {
+  const row = input.closest('[id*="-row-"]');
+  if (!row) return;
+  const prefix = row.id.startsWith('cp') ? 'cp' : 'stop';
+  const idx = row.id.split('-row-')[1];
+  const hintEl = document.getElementById(`${prefix}-city-${idx}-hint`);
+  if (!hintEl) return;
+  const city = input.value;
+  if (!city || !S.createData.from_city) { hintEl.textContent = ''; return; }
+  const tt = estimateTravelTime(S.createData.from_city, city);
+  if (!tt || (tt.hours === 0 && tt.minutes === 0)) { hintEl.textContent = ''; return; }
+  hintEl.textContent = `~${tt.hours}h ${tt.minutes}m from start`;
 }
 
 async function verifyAddress(inputId, statusId) {
