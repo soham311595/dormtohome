@@ -3137,6 +3137,13 @@ function autocityCreate(input, ddId) {
   dd.classList.add('open');
 }
 
+function cpCityItemHtml(inputId, ddId, c) {
+  const from = S.createData.from_city || '';
+  const tt = estimateTravelTime(from, `${c.n}, ${c.s}`);
+  const timeStr = tt && (tt.hours > 0 || tt.minutes > 0) ? `<span style="font-size:.7rem;color:var(--gray-500);white-space:nowrap;margin:0 8px">~${tt.hours}h ${tt.minutes}m</span>` : '';
+  return `<div class="city-item" onclick="selectCity('${inputId}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span>${timeStr}<span class="city-zip">${c.z}</span></div>`;
+}
+
 function autocityCheckpoint(input, ddId, showAll) {
   const q = input.value.toLowerCase();
   const dd = document.getElementById(ddId);
@@ -3159,19 +3166,19 @@ function autocityCheckpoint(input, ddId, showAll) {
   }
   if (showAll && pool.length > 0) {
     const list = pool.slice(0, 10);
-    dd.innerHTML = list.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
+    dd.innerHTML = list.map(c => cpCityItemHtml(input.id, ddId, c)).join('');
     dd.classList.add('open');
     return;
   }
   if (!q) { dd.classList.remove('open'); return; }
   const matches = pool.filter(c => c.n.toLowerCase().includes(q)).slice(0, 6);
   if (!matches.length) {
-    dd.innerHTML = pool.slice(0, 6).map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
+    dd.innerHTML = pool.slice(0, 6).map(c => cpCityItemHtml(input.id, ddId, c)).join('');
     if (pool.length > 0) dd.classList.add('open');
     else dd.classList.remove('open');
     return;
   }
-  dd.innerHTML = matches.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
+  dd.innerHTML = matches.map(c => cpCityItemHtml(input.id, ddId, c)).join('');
   dd.classList.add('open');
 }
 
