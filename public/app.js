@@ -2417,7 +2417,7 @@ function createNext() {
     const timeVal = document.getElementById('cr-dep-time')?.value;
     if (dateVal) {
       const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
       if (dateVal < todayStr) {
         const err = document.getElementById('cr-date-err');
         if (err) err.textContent = 'Cannot create a route in the past';
