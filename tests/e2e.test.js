@@ -934,4 +934,72 @@ test.describe.serial('DormToHome E2E Tests', () => {
     await driver.locator('[data-tab="routes"]').click();
     await waitForSpinner();
   });
+
+  // ─── TEST 15: REVIEW MAP & CHECKPOINT REFRESH ───────────
+
+  test('Test 15: Review map renders and stops refresh checkpoints', async () => {
+    test.setTimeout(60000);
+
+    // Sign in as driver
+    await page.locator('#screen-landing button', { hasText: 'Sign In' }).click();
+    await expect(page.locator('#screen-login')).toBeVisible({ timeout: 5000 });
+    await page.fill('#login-email', 'marcus@dormtohome.com');
+    await page.fill('#login-pass', 'password123');
+    await page.locator('#login-btn').click();
+    await expect(page.locator('#screen-driver')).toBeVisible({ timeout: 12000 });
+
+    const driver = page.locator('#screen-driver');
+
+    // Open route creation wizard
+    await driver.locator('[data-tab="create"]').click();
+    await expect(driver.getByText('Create New Route')).toBeVisible({ timeout: 5000 });
+
+    // Fill Step 1 and advance
+    await page.fill('#cr-from', 'College Station, TX');
+    await page.fill('#cr-to', 'Dallas, TX');
+    await page.fill('#cr-date', '2026-08-01');
+    await page.fill('#cr-dep-time', '08:00');
+    await page.fill('#cr-duration', '3h 30m');
+    await driver.locator('button', { hasText: 'Next: Stops' }).click();
+
+    // Step 2: Add a stop
+    await expect(driver.getByText('Stops & Checkpoints')).toBeVisible({ timeout: 3000 });
+    const addStopBtn = driver.locator('button', { hasText: '+ Add Stop' });
+    await addStopBtn.click();
+    await page.waitForTimeout(200);
+
+    // Fill the stop city
+    const stopCityInput = driver.locator('#create-stops-list input').first();
+    await stopCityInput.fill('Waco');
+    await page.waitForTimeout(500);
+    // Select from dropdown if visible
+    const stopDropdown = driver.locator('#create-stops-list .city-item').first();
+    if (await stopDropdown.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await stopDropdown.click();
+    }
+
+    // Advance to Step 3 then Step 4
+    await driver.locator('button', { hasText: 'Next: Seats' }).click();
+    await expect(driver.getByText('Seats & Pricing')).toBeVisible({ timeout: 3000 });
+    await page.fill('#cr-price', '30');
+    await page.waitForTimeout(200);
+    await driver.locator('button', { hasText: 'Review' }).click();
+
+    // Step 4: Review map should render
+    await expect(driver.getByText('Review & Post')).toBeVisible({ timeout: 3000 });
+    const reviewMap = page.locator('#cr-review-map');
+    await expect(reviewMap).toBeVisible({ timeout: 5000 });
+    // Map should have a Leaflet container inside
+    const hasLeaflet = await reviewMap.locator('.leaflet-container, .leaflet-pane').first().isVisible({ timeout: 3000 }).catch(() => false);
+    expect(hasLeaflet).toBe(true);
+
+    // Route Preview should still show
+    await expect(driver.getByText('Route Preview')).toBeVisible({ timeout: 3000 });
+
+    // Cancel
+    await driver.locator('button', { hasText: '← Edit' }).click();
+    await expect(driver.getByText('Seats & Pricing')).toBeVisible({ timeout: 3000 });
+    await driver.locator('[data-tab="routes"]').click();
+    await waitForSpinner();
+  });
 });

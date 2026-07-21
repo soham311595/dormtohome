@@ -66,76 +66,222 @@ document.addEventListener('click', e => {
 
 // ─── CITIES ───────────────────────────────────────────────
 const CITIES = [
-  {n:'College Station',s:'TX',z:'77840'},{n:'College Station',s:'TX',z:'77841'},
-  {n:'Houston',s:'TX',z:'77001'},{n:'Houston Heights',s:'TX',z:'77008'},
-  {n:'Austin',s:'TX',z:'78701'},{n:'Dallas',s:'TX',z:'75201'},
-  {n:'San Antonio',s:'TX',z:'78201'},{n:'Lubbock',s:'TX',z:'79401'},
-  {n:'Waco',s:'TX',z:'76701'},{n:'Bryan',s:'TX',z:'77801'},
-  {n:'Round Rock',s:'TX',z:'78664'},{n:'Plano',s:'TX',z:'75023'},
-  {n:'Fort Worth',s:'TX',z:'76101'},{n:'The Woodlands',s:'TX',z:'77380'},
-  {n:'Sugar Land',s:'TX',z:'77478'},{n:'Conroe',s:'TX',z:'77301'},
-  {n:'Huntsville',s:'TX',z:'77340'},{n:'Temple',s:'TX',z:'76501'},
-  {n:'Killeen',s:'TX',z:'76541'},{n:'Galveston',s:'TX',z:'77550'},
-  {n:'Corpus Christi',s:'TX',z:'78401'},{n:'San Marcos',s:'TX',z:'78666'},
-  {n:'Denton',s:'TX',z:'76201'},{n:'Pearland',s:'TX',z:'77581'},
-  {n:'Pflugerville',s:'TX',z:'78660'},{n:'Georgetown',s:'TX',z:'78626'},
-  {n:'Allen',s:'TX',z:'75002'},{n:'Arlington',s:'TX',z:'76010'},
-  {n:'Bedford',s:'TX',z:'76021'},{n:'Carrollton',s:'TX',z:'75006'},
-  {n:'Cedar Hill',s:'TX',z:'75104'},{n:'Coppell',s:'TX',z:'75019'},
-  {n:'Euless',s:'TX',z:'76039'},{n:'Flower Mound',s:'TX',z:'75028'},
-  {n:'Frisco',s:'TX',z:'75034'},{n:'Garland',s:'TX',z:'75040'},
-  {n:'Grand Prairie',s:'TX',z:'75050'},{n:'Grapevine',s:'TX',z:'76051'},
-  {n:'Irving',s:'TX',z:'75038'},{n:'Lewisville',s:'TX',z:'75067'},
+  {n:'Abilene',s:'TX',z:'79601'},{n:'Alvin',s:'TX',z:'77511'},
+  {n:'Amarillo',s:'TX',z:'79101'},{n:'Allen',s:'TX',z:'75002'},
+  {n:'Alvarado',s:'TX',z:'76009'},{n:'Angleton',s:'TX',z:'77515'},
+  {n:'Anna',s:'TX',z:'75409'},{n:'Arlington',s:'TX',z:'76010'},
+  {n:'Athens',s:'TX',z:'75751'},{n:'Austin',s:'TX',z:'78701'},
+  {n:'Bay City',s:'TX',z:'77414'},{n:'Baytown',s:'TX',z:'77520'},
+  {n:'Beaumont',s:'TX',z:'77701'},{n:'Bee Cave',s:'TX',z:'78738'},
+  {n:'Beeville',s:'TX',z:'78102'},{n:'Bedford',s:'TX',z:'76021'},
+  {n:'Benbrook',s:'TX',z:'76126'},{n:'Brenham',s:'TX',z:'77833'},
+  {n:'Brownsville',s:'TX',z:'78520'},{n:'Brownwood',s:'TX',z:'76801'},
+  {n:'Bryan',s:'TX',z:'77801'},{n:'Buda',s:'TX',z:'78610'},
+  {n:'Burleson',s:'TX',z:'76028'},{n:'Carrollton',s:'TX',z:'75006'},
+  {n:'Cedar Hill',s:'TX',z:'75104'},{n:'Cedar Park',s:'TX',z:'78613'},
+  {n:'Celina',s:'TX',z:'75009'},{n:'College Station',s:'TX',z:'77840'},
+  {n:'Conroe',s:'TX',z:'77301'},{n:'Coppell',s:'TX',z:'75019'},
+  {n:'Corpus Christi',s:'TX',z:'78401'},{n:'Corsicana',s:'TX',z:'75110'},
+  {n:'Crowley',s:'TX',z:'76036'},{n:'Cypress',s:'TX',z:'77429'},
+  {n:'Dallas',s:'TX',z:'75201'},{n:'DeSoto',s:'TX',z:'75115'},
+  {n:'Del Rio',s:'TX',z:'78840'},{n:'Denton',s:'TX',z:'76201'},
+  {n:'Denison',s:'TX',z:'75020'},{n:'Dripping Springs',s:'TX',z:'78620'},
+  {n:'Duncanville',s:'TX',z:'75116'},{n:'El Paso',s:'TX',z:'79901'},
+  {n:'Elgin',s:'TX',z:'78621'},{n:'Euless',s:'TX',z:'76039'},
+  {n:'Flower Mound',s:'TX',z:'75028'},{n:'Forney',s:'TX',z:'75126'},
+  {n:'Fort Worth',s:'TX',z:'76101'},{n:'Frisco',s:'TX',z:'75034'},
+  {n:'Fulshear',s:'TX',z:'77441'},{n:'Galveston',s:'TX',z:'77550'},
+  {n:'Garland',s:'TX',z:'75040'},{n:'Gatesville',s:'TX',z:'76528'},
+  {n:'Georgetown',s:'TX',z:'78626'},{n:'Grand Prairie',s:'TX',z:'75050'},
+  {n:'Grapevine',s:'TX',z:'76051'},{n:'Haltom City',s:'TX',z:'76117'},
+  {n:'Hempstead',s:'TX',z:'77445'},{n:'Houston',s:'TX',z:'77001'},
+  {n:'Humble',s:'TX',z:'77338'},{n:'Huntsville',s:'TX',z:'77340'},
+  {n:'Hurst',s:'TX',z:'76053'},{n:'Hutto',s:'TX',z:'78634'},
+  {n:'Irving',s:'TX',z:'75038'},{n:'Jacksonville',s:'TX',z:'75766'},
+  {n:'Joshua',s:'TX',z:'76058'},{n:'Junction',s:'TX',z:'76849'},
+  {n:'Katy',s:'TX',z:'77449'},{n:'Keller',s:'TX',z:'76248'},
+  {n:'Killeen',s:'TX',z:'76541'},{n:'Kingsville',s:'TX',z:'78363'},
+  {n:'Kyle',s:'TX',z:'78640'},{n:'La Porte',s:'TX',z:'77571'},
+  {n:'Lakeway',s:'TX',z:'78734'},{n:'Lancaster',s:'TX',z:'75134'},
+  {n:'Laredo',s:'TX',z:'78040'},{n:'Leander',s:'TX',z:'78641'},
+  {n:'Lewisville',s:'TX',z:'75067'},{n:'Liberty',s:'TX',z:'77575'},
+  {n:'Livingston',s:'TX',z:'77351'},{n:'Lockhart',s:'TX',z:'78644'},
+  {n:'Longview',s:'TX',z:'75601'},{n:'Lubbock',s:'TX',z:'79401'},
+  {n:'Lufk\'in',s:'TX',z:'75901'},{n:'Magnolia',s:'TX',z:'77354'},
+  {n:'Mansfield',s:'TX',z:'76063'},{n:'Marshall',s:'TX',z:'75670'},
   {n:'McKinney',s:'TX',z:'75069'},{n:'Mesquite',s:'TX',z:'75149'},
-  {n:'Richardson',s:'TX',z:'75080'},{n:'Rockwall',s:'TX',z:'75087'},
-  {n:'Rowlett',s:'TX',z:'75088'},
+  {n:'Midlothian',s:'TX',z:'76065'},{n:'Mineral Wells',s:'TX',z:'76067'},
+  {n:'Missouri City',s:'TX',z:'77459'},{n:'Mount Pleasant',s:'TX',z:'75455'},
+  {n:'Nacogdoches',s:'TX',z:'75961'},{n:'Navasota',s:'TX',z:'77868'},
+  {n:'New Braunfels',s:'TX',z:'78130'},{n:'North Richland Hills',s:'TX',z:'76180'},
+  {n:'Odessa',s:'TX',z:'79761'},{n:'Palestine',s:'TX',z:'75801'},
+  {n:'Palacios',s:'TX',z:'77415'},{n:'Paris',s:'TX',z:'75460'},
+  {n:'Pasadena',s:'TX',z:'77506'},{n:'Pearland',s:'TX',z:'77581'},
+  {n:'Pflugerville',s:'TX',z:'78660'},{n:'Plano',s:'TX',z:'75023'},
+  {n:'Port Lavaca',s:'TX',z:'77979'},{n:'Prairie View',s:'TX',z:'77446'},
+  {n:'Princeton',s:'TX',z:'75407'},{n:'Prosper',s:'TX',z:'75078'},
+  {n:'Richardson',s:'TX',z:'75080'},{n:'Richmond',s:'TX',z:'77469'},
+  {n:'Rockwall',s:'TX',z:'75087'},{n:'Rosenberg',s:'TX',z:'77471'},
+  {n:'Round Rock',s:'TX',z:'78664'},{n:'Rowlett',s:'TX',z:'75088'},
+  {n:'San Angelo',s:'TX',z:'76901'},{n:'San Antonio',s:'TX',z:'78201'},
+  {n:'San Marcos',s:'TX',z:'78666'},{n:'Seguin',s:'TX',z:'78155'},
+  {n:'Sherman',s:'TX',z:'75090'},{n:'Socorro',s:'TX',z:'79927'},
+  {n:'Southlake',s:'TX',z:'76092'},{n:'Spring',s:'TX',z:'77373'},
+  {n:'Stafford',s:'TX',z:'77477'},{n:'Stephenville',s:'TX',z:'76401'},
+  {n:'Sugar Land',s:'TX',z:'77478'},{n:'Sulphur Springs',s:'TX',z:'75482'},
+  {n:'Sunnyvale',s:'TX',z:'75182'},{n:'Temple',s:'TX',z:'76501'},
+  {n:'Terrell',s:'TX',z:'75160'},{n:'Texarkana',s:'TX',z:'75501'},
+  {n:'The Woodlands',s:'TX',z:'77380'},{n:'Tomball',s:'TX',z:'77375'},
+  {n:'Tyler',s:'TX',z:'75701'},{n:'Uvalde',s:'TX',z:'78801'},
+  {n:'Victoria',s:'TX',z:'77901'},{n:'Waco',s:'TX',z:'76701'},
+  {n:'Waller',s:'TX',z:'77484'},{n:'Weatherford',s:'TX',z:'76086'},
+  {n:'Wharton',s:'TX',z:'77488'},{n:'White Settlement',s:'TX',z:'76108'},
+  {n:'Wichita Falls',s:'TX',z:'76301'},
 ];
 
 // ─── CITY COORDINATES (for travel time estimation) ───────
 const CITY_COORDS = {
-  'College Station': { lat: 30.628, lon: -96.334 },
-  'Houston': { lat: 29.760, lon: -95.370 },
-  'Austin': { lat: 30.267, lon: -97.743 },
-  'Dallas': { lat: 32.776, lon: -96.797 },
-  'San Antonio': { lat: 29.425, lon: -98.494 },
-  'Lubbock': { lat: 33.578, lon: -101.856 },
-  'Waco': { lat: 31.549, lon: -97.147 },
-  'Bryan': { lat: 30.674, lon: -96.370 },
-  'Frisco': { lat: 33.150, lon: -96.823 },
-  'Plano': { lat: 33.020, lon: -96.699 },
-  'McKinney': { lat: 33.197, lon: -96.640 },
+  'Abilene': { lat: 32.449, lon: -99.732 },
+  'Alvin': { lat: 29.424, lon: -95.244 },
+  'Amarillo': { lat: 35.222, lon: -101.831 },
   'Allen': { lat: 33.103, lon: -96.670 },
-  'Denton': { lat: 33.215, lon: -97.133 },
-  'Fort Worth': { lat: 32.755, lon: -97.333 },
+  'Alvarado': { lat: 32.407, lon: -97.212 },
+  'Angleton': { lat: 29.166, lon: -95.431 },
+  'Anna': { lat: 33.350, lon: -96.547 },
   'Arlington': { lat: 32.736, lon: -97.108 },
-  'Garland': { lat: 32.913, lon: -96.639 },
-  'Irving': { lat: 32.814, lon: -96.949 },
-  'Round Rock': { lat: 30.508, lon: -97.679 },
-  'The Woodlands': { lat: 30.158, lon: -95.470 },
-  'Sugar Land': { lat: 29.619, lon: -95.635 },
-  'Conroe': { lat: 30.312, lon: -95.456 },
-  'Huntsville': { lat: 30.724, lon: -95.551 },
-  'Temple': { lat: 31.098, lon: -97.343 },
-  'Killeen': { lat: 31.117, lon: -97.728 },
-  'Galveston': { lat: 29.301, lon: -94.798 },
-  'Corpus Christi': { lat: 27.801, lon: -97.396 },
-  'San Marcos': { lat: 29.883, lon: -97.940 },
-  'Pearland': { lat: 29.564, lon: -95.286 },
-  'Pflugerville': { lat: 30.439, lon: -97.620 },
-  'Georgetown': { lat: 30.633, lon: -97.677 },
+  'Athens': { lat: 32.204, lon: -95.856 },
+  'Austin': { lat: 30.267, lon: -97.743 },
+  'Bay City': { lat: 29.983, lon: -95.969 },
+  'Baytown': { lat: 29.751, lon: -94.977 },
+  'Beaumont': { lat: 30.086, lon: -94.102 },
+  'Bee Cave': { lat: 30.309, lon: -97.941 },
+  'Beeville': { lat: 28.401, lon: -97.749 },
   'Bedford': { lat: 32.844, lon: -97.143 },
+  'Benbrook': { lat: 32.679, lon: -97.464 },
+  'Brenham': { lat: 30.167, lon: -96.397 },
+  'Brownsville': { lat: 25.902, lon: -97.497 },
+  'Brownwood': { lat: 31.709, lon: -98.991 },
+  'Bryan': { lat: 30.674, lon: -96.370 },
+  'Buda': { lat: 30.085, lon: -97.841 },
+  'Burleson': { lat: 32.542, lon: -97.321 },
   'Carrollton': { lat: 32.976, lon: -96.890 },
   'Cedar Hill': { lat: 32.589, lon: -96.956 },
+  'Cedar Park': { lat: 30.505, lon: -97.820 },
+  'Celina': { lat: 33.318, lon: -96.787 },
+  'College Station': { lat: 30.628, lon: -96.334 },
+  'Conroe': { lat: 30.312, lon: -95.456 },
   'Coppell': { lat: 32.955, lon: -97.015 },
+  'Corpus Christi': { lat: 27.801, lon: -97.396 },
+  'Corsicana': { lat: 32.096, lon: -96.468 },
+  'Crowley': { lat: 32.579, lon: -97.362 },
+  'Cypress': { lat: 29.969, lon: -95.697 },
+  'Dallas': { lat: 32.776, lon: -96.797 },
+  'DeSoto': { lat: 32.589, lon: -96.857 },
+  'Del Rio': { lat: 29.363, lon: -100.896 },
+  'Denton': { lat: 33.215, lon: -97.133 },
+  'Denison': { lat: 33.756, lon: -96.537 },
+  'Dripping Springs': { lat: 30.190, lon: -98.087 },
+  'Duncanville': { lat: 32.651, lon: -96.909 },
+  'El Paso': { lat: 31.762, lon: -106.485 },
+  'Elgin': { lat: 30.350, lon: -97.372 },
   'Euless': { lat: 32.837, lon: -97.082 },
   'Flower Mound': { lat: 33.015, lon: -97.097 },
+  'Forney': { lat: 32.747, lon: -96.476 },
+  'Fort Worth': { lat: 32.755, lon: -97.333 },
+  'Frisco': { lat: 33.150, lon: -96.823 },
+  'Fulshear': { lat: 29.694, lon: -95.896 },
+  'Galveston': { lat: 29.301, lon: -94.798 },
+  'Garland': { lat: 32.913, lon: -96.639 },
+  'Gatesville': { lat: 31.435, lon: -97.743 },
+  'Georgetown': { lat: 30.633, lon: -97.677 },
   'Grand Prairie': { lat: 32.746, lon: -97.003 },
   'Grapevine': { lat: 32.934, lon: -97.078 },
+  'Haltom City': { lat: 32.793, lon: -97.214 },
+  'Hempstead': { lat: 30.097, lon: -96.078 },
+  'Houston': { lat: 29.760, lon: -95.370 },
+  'Humble': { lat: 29.999, lon: -95.262 },
+  'Huntsville': { lat: 30.724, lon: -95.551 },
+  'Hurst': { lat: 32.823, lon: -97.171 },
+  'Hutto': { lat: 30.543, lon: -97.544 },
+  'Irving': { lat: 32.814, lon: -96.949 },
+  'Jacksonville': { lat: 31.964, lon: -95.271 },
+  'Joshua': { lat: 32.461, lon: -97.388 },
+  'Junction': { lat: 30.494, lon: -99.772 },
+  'Katy': { lat: 29.786, lon: -95.824 },
+  'Keller': { lat: 32.935, lon: -97.251 },
+  'Killeen': { lat: 31.117, lon: -97.728 },
+  'Kingsville': { lat: 27.516, lon: -97.856 },
+  'Kyle': { lat: 29.989, lon: -97.877 },
+  'La Porte': { lat: 29.666, lon: -95.016 },
+  'Lakeway': { lat: 30.363, lon: -97.980 },
+  'Lancaster': { lat: 32.592, lon: -96.797 },
+  'Laredo': { lat: 27.504, lon: -99.508 },
+  'Leander': { lat: 30.560, lon: -97.854 },
   'Lewisville': { lat: 33.046, lon: -96.994 },
+  'Liberty': { lat: 30.155, lon: -94.800 },
+  'Livingston': { lat: 30.711, lon: -94.933 },
+  'Lockhart': { lat: 29.885, lon: -97.670 },
+  'Longview': { lat: 32.501, lon: -94.742 },
+  'Lubbock': { lat: 33.578, lon: -101.856 },
+  'Lufk\'in': { lat: 31.338, lon: -94.651 },
+  'Magnolia': { lat: 30.210, lon: -95.735 },
+  'Mansfield': { lat: 32.563, lon: -97.141 },
+  'Marshall': { lat: 32.545, lon: -94.368 },
+  'McKinney': { lat: 33.197, lon: -96.640 },
   'Mesquite': { lat: 32.767, lon: -96.599 },
+  'Midlothian': { lat: 32.482, lon: -96.994 },
+  'Mineral Wells': { lat: 32.808, lon: -98.113 },
+  'Missouri City': { lat: 29.615, lon: -95.538 },
+  'Mount Pleasant': { lat: 33.157, lon: -94.967 },
+  'Nacogdoches': { lat: 31.606, lon: -94.656 },
+  'Navasota': { lat: 30.388, lon: -96.088 },
+  'New Braunfels': { lat: 29.703, lon: -98.124 },
+  'North Richland Hills': { lat: 32.834, lon: -97.229 },
+  'Odessa': { lat: 31.846, lon: -102.368 },
+  'Palestine': { lat: 31.762, lon: -95.631 },
+  'Palacios': { lat: 28.708, lon: -96.217 },
+  'Paris': { lat: 33.661, lon: -95.556 },
+  'Pasadena': { lat: 29.731, lon: -95.151 },
+  'Pearland': { lat: 29.564, lon: -95.286 },
+  'Pflugerville': { lat: 30.439, lon: -97.620 },
+  'Plano': { lat: 33.020, lon: -96.699 },
+  'Port Lavaca': { lat: 28.615, lon: -96.626 },
+  'Prairie View': { lat: 30.097, lon: -96.010 },
+  'Princeton': { lat: 33.180, lon: -96.500 },
+  'Prosper': { lat: 33.236, lon: -96.802 },
   'Richardson': { lat: 32.948, lon: -96.729 },
+  'Richmond': { lat: 29.582, lon: -95.760 },
   'Rockwall': { lat: 32.931, lon: -96.459 },
+  'Rosenberg': { lat: 29.557, lon: -95.809 },
+  'Round Rock': { lat: 30.508, lon: -97.679 },
   'Rowlett': { lat: 32.903, lon: -96.564 },
+  'San Angelo': { lat: 31.464, lon: -100.437 },
+  'San Antonio': { lat: 29.425, lon: -98.494 },
+  'San Marcos': { lat: 29.883, lon: -97.940 },
+  'Seguin': { lat: 29.569, lon: -97.968 },
+  'Sherman': { lat: 33.636, lon: -96.609 },
+  'Socorro': { lat: 31.655, lon: -106.278 },
+  'Southlake': { lat: 32.941, lon: -97.134 },
+  'Spring': { lat: 30.080, lon: -95.416 },
+  'Stafford': { lat: 29.615, lon: -95.557 },
+  'Stephenville': { lat: 32.221, lon: -98.202 },
+  'Sugar Land': { lat: 29.619, lon: -95.635 },
+  'Sulphur Springs': { lat: 33.138, lon: -95.601 },
+  'Sunnyvale': { lat: 32.757, lon: -96.561 },
+  'Temple': { lat: 31.098, lon: -97.343 },
+  'Terrell': { lat: 32.736, lon: -96.267 },
+  'Texarkana': { lat: 33.442, lon: -94.048 },
+  'The Woodlands': { lat: 30.158, lon: -95.470 },
+  'Tomball': { lat: 30.097, lon: -95.616 },
+  'Tyler': { lat: 32.351, lon: -95.301 },
+  'Uvalde': { lat: 29.215, lon: -99.787 },
+  'Victoria': { lat: 28.805, lon: -96.986 },
+  'Waco': { lat: 31.549, lon: -97.147 },
+  'Waller': { lat: 30.027, lon: -95.927 },
+  'Weatherford': { lat: 32.759, lon: -97.801 },
+  'Wharton': { lat: 29.312, lon: -96.103 },
+  'White Settlement': { lat: 32.759, lon: -97.448 },
+  'Wichita Falls': { lat: 33.914, lon: -98.493 },
 };
 
 function stripCityState(v) {
@@ -1699,8 +1845,58 @@ function buildDriverRoutesPage(routes) {
 
 // ─── DRIVER: CREATE ROUTE ────────────────────────────────
 function renderCreateRoute() {
+  if (reviewMap) { reviewMap.remove(); reviewMap = null; }
   document.getElementById('d-content').innerHTML = buildCreateRoutePage();
   if (S.createStep === 3) setTimeout(() => calcOrganizerPrice(), 0);
+  if (S.createStep === 4) setTimeout(initReviewMap, 50);
+}
+
+let reviewMap = null;
+function initReviewMap() {
+  const el = document.getElementById('cr-review-map');
+  if (!el || typeof L === 'undefined') return;
+  if (reviewMap) { reviewMap.remove(); reviewMap = null; }
+  const d = S.createData;
+  const fromCoords = CITY_COORDS[stripCityState(d.from_city)];
+  const toCoords = CITY_COORDS[stripCityState(d.to_city)];
+  if (!fromCoords || !toCoords) {
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--gray-400);font-size:.85rem">Route map unavailable</div>';
+    return;
+  }
+  reviewMap = L.map(el, { zoomControl: false, dragging: false, scrollWheelZoom: false, attributionControl: false }).setView([fromCoords.lat, fromCoords.lon], 8);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(reviewMap);
+  const gold = '#C9962A', navy = '#0B1D3A', green = '#2E7D52';
+  const icon = (color, label) => L.divIcon({
+    html: `<div style="width:28px;height:28px;background:${color};border-radius:50%;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:700">${label}</div>`,
+    iconSize: [28, 28], iconAnchor: [14, 14], className: ''
+  });
+  const waypoints = [[fromCoords.lat, fromCoords.lon]];
+  L.marker(waypoints[0], { icon: icon(green, 'A') }).addTo(reviewMap).bindPopup(`<b>From:</b> ${d.from_city}`);
+  const stops = (d.stops || []).filter(s => s.city);
+  for (const s of stops) {
+    const sc = CITY_COORDS[stripCityState(s.city)];
+    if (sc) {
+      const pos = [sc.lat, sc.lon];
+      waypoints.push(pos);
+      L.marker(pos, { icon: icon(gold, 'S') }).addTo(reviewMap).bindPopup(`<b>Stop:</b> ${s.city}`);
+    }
+  }
+  const checkpoints = (d.checkpoints || []).filter(c => c.city);
+  for (const cp of checkpoints) {
+    const cc = CITY_COORDS[stripCityState(cp.city)];
+    if (cc) {
+      const pos = [cc.lat, cc.lon];
+      waypoints.push(pos);
+      L.marker(pos, { icon: icon('#7C3AED', 'C') }).addTo(reviewMap).bindPopup(`<b>Checkpoint:</b> ${cp.city}`);
+    }
+  }
+  waypoints.push([toCoords.lat, toCoords.lon]);
+  L.marker(waypoints[waypoints.length - 1], { icon: icon(navy, 'B') }).addTo(reviewMap).bindPopup(`<b>To:</b> ${d.to_city}`);
+  if (waypoints.length >= 2) {
+    L.polyline(waypoints, { color: gold, weight: 4, opacity: 0.8, dashArray: '8,8' }).addTo(reviewMap);
+  }
+  const bounds = L.latLngBounds(waypoints);
+  reviewMap.fitBounds(bounds, { padding: [30, 30] });
 }
 
 function buildCreateRoutePage() {
@@ -1786,6 +1982,7 @@ function buildCreateStep() {
 
   if (S.createStep === 4) return `
     <div class="section-title">Review & Post</div>
+    <div id="cr-review-map" style="width:100%;height:260px;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1.5px solid var(--gray-200)"></div>
     <div style="background:var(--gray-100);border-radius:12px;padding:20px;margin-bottom:20px">
       <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--navy);margin-bottom:14px">Route Preview</div>
       ${[['From',d.from_city],['To',d.to_city],['Date',fmtDate(d.departure_date)],['Departure',d.departure_time],['Arrival',d.arrival_time],['Duration',d.duration],['Seats',`${d.total_seats} @ $${d.price_per_seat}/seat`]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--gray-200);font-size:.875rem"><span style="color:var(--gray-600)">${k}</span><strong style="color:var(--navy)">${v || '—'}</strong></div>`).join('')}
@@ -1812,6 +2009,7 @@ function buildStopRow(s, i, isCheckpoint = false) {
       <div style="position:relative">
         <input class="form-input" id="${cityId}" style="width:100%;color:var(--navy-dark);background:var(--gray-100)" placeholder="${cityPlaceholder}" value="${s.city || ''}"${isCheckpoint ? ` onfocus="autocityCheckpoint(this,'${ddId}',true)" oninput="autocityCheckpoint(this,'${ddId}')"` : ` oninput="autocityCreate(this,'${ddId}')"`}>
         <div class="city-dropdown" id="${ddId}"></div>
+        ${isCheckpoint ? `<div id="${cityId}-warn" style="color:#b45309;font-size:.7rem;margin-top:2px;display:none"></div>` : ''}
       </div>
     </div>
     <div style="flex:1;display:flex;flex-direction:column;gap:4px">
@@ -1942,12 +2140,23 @@ function addStopRow(type) {
   container.appendChild(div.firstElementChild);
   recalcStopDuration();
   recalcStopTimes();
+  if (type === 'stop') refreshCheckpointSuggestions();
 }
 
 function removeStopRow(btn) {
   btn.parentElement.remove();
   recalcStopDuration();
   recalcStopTimes();
+  refreshCheckpointSuggestions();
+}
+
+function refreshCheckpointSuggestions() {
+  const stopRows = document.querySelectorAll('#create-stops-list > div');
+  S.createData.stops = Array.from(stopRows).map(row => {
+    const inputs = row.querySelectorAll('input');
+    return { city: inputs[0]?.value, address: inputs[1]?.value, time: inputs[2]?.value, type: 'stop' };
+  }).filter(s => s.city);
+  fetchSuggestedCheckpoints();
 }
 
 function editStopTime(btn) {
@@ -2870,6 +3079,16 @@ function autocityCheckpoint(input, ddId, showAll) {
     const sugSet = new Set(suggested.map(s => s.replace(/, ?TX$/, '').trim().toLowerCase()));
     pool = CITIES.filter(c => sugSet.has(c.n.toLowerCase()));
   }
+  const warnEl = document.getElementById(input.id + '-warn');
+  if (warnEl) {
+    if (q && pool.length > 0 && !pool.some(c => c.n.toLowerCase() === q)) {
+      warnEl.textContent = 'City not on route — please select from the list below';
+      warnEl.style.display = 'block';
+    } else {
+      warnEl.textContent = '';
+      warnEl.style.display = 'none';
+    }
+  }
   if (showAll && pool.length > 0) {
     const list = pool.slice(0, 10);
     dd.innerHTML = list.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
@@ -2878,7 +3097,12 @@ function autocityCheckpoint(input, ddId, showAll) {
   }
   if (!q) { dd.classList.remove('open'); return; }
   const matches = pool.filter(c => c.n.toLowerCase().includes(q)).slice(0, 6);
-  if (!matches.length) { dd.classList.remove('open'); return; }
+  if (!matches.length) {
+    dd.innerHTML = pool.slice(0, 6).map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
+    if (pool.length > 0) dd.classList.add('open');
+    else dd.classList.remove('open');
+    return;
+  }
   dd.innerHTML = matches.map(c => `<div class="city-item" onclick="selectCity('${input.id}','${ddId}','${c.n}, ${c.s}')"><span>${c.n}, ${c.s}</span><span class="city-zip">${c.z}</span></div>`).join('');
   dd.classList.add('open');
 }
@@ -2890,11 +3114,20 @@ async function fetchSuggestedCheckpoints() {
   const fromCoords = CITY_COORDS[stripCityState(from)];
   const toCoords = CITY_COORDS[stripCityState(to)];
   if (!fromCoords || !toCoords) return;
+  const stops = (S.createData.stops || []).map(s => {
+    const c = CITY_COORDS[stripCityState(s.city)];
+    return c ? { lat: c.lat, lon: c.lon } : null;
+  }).filter(Boolean);
   try {
-    const data = await api('GET', `/routes/suggest-checkpoints?from_lat=${fromCoords.lat}&from_lon=${fromCoords.lon}&to_lat=${toCoords.lat}&to_lon=${toCoords.lon}`, null, false);
+    const stopsParam = encodeURIComponent(JSON.stringify(stops));
+    const data = await api('GET', `/routes/suggest-checkpoints?from_lat=${fromCoords.lat}&from_lon=${fromCoords.lon}&to_lat=${toCoords.lat}&to_lon=${toCoords.lon}&stops=${stopsParam}`, null, false);
     S.suggestedCheckpoints = Array.isArray(data) ? data : [];
   } catch {
     S.suggestedCheckpoints = [];
+  }
+  const stopCities = (S.createData.stops || []).map(s => s.city).filter(Boolean);
+  for (const sc of stopCities) {
+    if (!S.suggestedCheckpoints.includes(sc)) S.suggestedCheckpoints.push(sc);
   }
 }
 
@@ -2915,6 +3148,7 @@ function selectCity(inputId, ddId, val) {
   if (inputId === 'req-from') { S.reqData.from_city = val; S.reqData.arrival_time = ''; }
   else if (inputId === 'req-to') { S.reqData.to_city = val; S.reqData.arrival_time = ''; }
   else if (inputId === 'cr-from' || inputId === 'cr-to') updateCreateArrival();
+  else if (inputId.startsWith('stop-city-')) refreshCheckpointSuggestions();
 }
 
 function stripState(v) { return v.replace(/, ?[A-Za-z]{2}$/, '').trim(); }

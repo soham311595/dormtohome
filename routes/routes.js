@@ -6,49 +6,147 @@ const { authMiddleware, requireRole } = require('../middleware/auth');
 const { sendEmail, guardianCheckpointHTML } = require('../utils/email');
 
 const ROUTE_CITIES = [
-  { name: 'College Station', lat: 30.628, lon: -96.334 },
-  { name: 'Houston', lat: 29.760, lon: -95.370 },
-  { name: 'Austin', lat: 30.267, lon: -97.743 },
-  { name: 'Dallas', lat: 32.776, lon: -96.797 },
-  { name: 'San Antonio', lat: 29.425, lon: -98.494 },
-  { name: 'Lubbock', lat: 33.578, lon: -101.856 },
-  { name: 'Waco', lat: 31.549, lon: -97.147 },
-  { name: 'Bryan', lat: 30.674, lon: -96.370 },
-  { name: 'Frisco', lat: 33.150, lon: -96.823 },
-  { name: 'Plano', lat: 33.020, lon: -96.699 },
-  { name: 'McKinney', lat: 33.197, lon: -96.640 },
+  { name: 'Abilene', lat: 32.449, lon: -99.732 },
+  { name: 'Alvin', lat: 29.424, lon: -95.244 },
+  { name: 'Amarillo', lat: 35.222, lon: -101.831 },
   { name: 'Allen', lat: 33.103, lon: -96.670 },
-  { name: 'Denton', lat: 33.215, lon: -97.133 },
-  { name: 'Fort Worth', lat: 32.755, lon: -97.333 },
+  { name: 'Alvarado', lat: 32.407, lon: -97.212 },
+  { name: 'Angleton', lat: 29.166, lon: -95.431 },
+  { name: 'Anna', lat: 33.350, lon: -96.547 },
   { name: 'Arlington', lat: 32.736, lon: -97.108 },
-  { name: 'Garland', lat: 32.913, lon: -96.639 },
-  { name: 'Irving', lat: 32.814, lon: -96.949 },
-  { name: 'Round Rock', lat: 30.508, lon: -97.679 },
-  { name: 'The Woodlands', lat: 30.158, lon: -95.470 },
-  { name: 'Sugar Land', lat: 29.619, lon: -95.635 },
-  { name: 'Conroe', lat: 30.312, lon: -95.456 },
-  { name: 'Huntsville', lat: 30.724, lon: -95.551 },
-  { name: 'Temple', lat: 31.098, lon: -97.343 },
-  { name: 'Killeen', lat: 31.117, lon: -97.728 },
-  { name: 'Galveston', lat: 29.301, lon: -94.798 },
-  { name: 'Corpus Christi', lat: 27.801, lon: -97.396 },
-  { name: 'San Marcos', lat: 29.883, lon: -97.940 },
-  { name: 'Pearland', lat: 29.564, lon: -95.286 },
-  { name: 'Pflugerville', lat: 30.439, lon: -97.620 },
-  { name: 'Georgetown', lat: 30.633, lon: -97.677 },
+  { name: 'Athens', lat: 32.204, lon: -95.856 },
+  { name: 'Austin', lat: 30.267, lon: -97.743 },
+  { name: 'Bay City', lat: 29.983, lon: -95.969 },
+  { name: 'Baytown', lat: 29.751, lon: -94.977 },
+  { name: 'Beaumont', lat: 30.086, lon: -94.102 },
+  { name: 'Bee Cave', lat: 30.309, lon: -97.941 },
+  { name: 'Beeville', lat: 28.401, lon: -97.749 },
   { name: 'Bedford', lat: 32.844, lon: -97.143 },
+  { name: 'Benbrook', lat: 32.679, lon: -97.464 },
+  { name: 'Brenham', lat: 30.167, lon: -96.397 },
+  { name: 'Brownsville', lat: 25.902, lon: -97.497 },
+  { name: 'Brownwood', lat: 31.709, lon: -98.991 },
+  { name: 'Bryan', lat: 30.674, lon: -96.370 },
+  { name: 'Buda', lat: 30.085, lon: -97.841 },
+  { name: 'Burleson', lat: 32.542, lon: -97.321 },
   { name: 'Carrollton', lat: 32.976, lon: -96.890 },
   { name: 'Cedar Hill', lat: 32.589, lon: -96.956 },
+  { name: 'Cedar Park', lat: 30.505, lon: -97.820 },
+  { name: 'Celina', lat: 33.318, lon: -96.787 },
+  { name: 'College Station', lat: 30.628, lon: -96.334 },
+  { name: 'Conroe', lat: 30.312, lon: -95.456 },
   { name: 'Coppell', lat: 32.955, lon: -97.015 },
+  { name: 'Corpus Christi', lat: 27.801, lon: -97.396 },
+  { name: 'Corsicana', lat: 32.096, lon: -96.468 },
+  { name: 'Crowley', lat: 32.579, lon: -97.362 },
+  { name: 'Cypress', lat: 29.969, lon: -95.697 },
+  { name: 'Dallas', lat: 32.776, lon: -96.797 },
+  { name: 'DeSoto', lat: 32.589, lon: -96.857 },
+  { name: 'Del Rio', lat: 29.363, lon: -100.896 },
+  { name: 'Denton', lat: 33.215, lon: -97.133 },
+  { name: 'Denison', lat: 33.756, lon: -96.537 },
+  { name: 'Dripping Springs', lat: 30.190, lon: -98.087 },
+  { name: 'Duncanville', lat: 32.651, lon: -96.909 },
+  { name: 'El Paso', lat: 31.762, lon: -106.485 },
+  { name: 'Elgin', lat: 30.350, lon: -97.372 },
   { name: 'Euless', lat: 32.837, lon: -97.082 },
   { name: 'Flower Mound', lat: 33.015, lon: -97.097 },
+  { name: 'Forney', lat: 32.747, lon: -96.476 },
+  { name: 'Fort Worth', lat: 32.755, lon: -97.333 },
+  { name: 'Frisco', lat: 33.150, lon: -96.823 },
+  { name: 'Fulshear', lat: 29.694, lon: -95.896 },
+  { name: 'Galveston', lat: 29.301, lon: -94.798 },
+  { name: 'Garland', lat: 32.913, lon: -96.639 },
+  { name: 'Gatesville', lat: 31.435, lon: -97.743 },
+  { name: 'Georgetown', lat: 30.633, lon: -97.677 },
   { name: 'Grand Prairie', lat: 32.746, lon: -97.003 },
   { name: 'Grapevine', lat: 32.934, lon: -97.078 },
+  { name: 'Haltom City', lat: 32.793, lon: -97.214 },
+  { name: 'Hempstead', lat: 30.097, lon: -96.078 },
+  { name: 'Houston', lat: 29.760, lon: -95.370 },
+  { name: 'Humble', lat: 29.999, lon: -95.262 },
+  { name: 'Huntsville', lat: 30.724, lon: -95.551 },
+  { name: 'Hurst', lat: 32.823, lon: -97.171 },
+  { name: 'Hutto', lat: 30.543, lon: -97.544 },
+  { name: 'Irving', lat: 32.814, lon: -96.949 },
+  { name: 'Jacksonville', lat: 31.964, lon: -95.271 },
+  { name: 'Joshua', lat: 32.461, lon: -97.388 },
+  { name: 'Junction', lat: 30.494, lon: -99.772 },
+  { name: 'Katy', lat: 29.786, lon: -95.824 },
+  { name: 'Keller', lat: 32.935, lon: -97.251 },
+  { name: 'Killeen', lat: 31.117, lon: -97.728 },
+  { name: 'Kingsville', lat: 27.516, lon: -97.856 },
+  { name: 'Kyle', lat: 29.989, lon: -97.877 },
+  { name: 'La Porte', lat: 29.666, lon: -95.016 },
+  { name: 'Lakeway', lat: 30.363, lon: -97.980 },
+  { name: 'Lancaster', lat: 32.592, lon: -96.797 },
+  { name: 'Laredo', lat: 27.504, lon: -99.508 },
+  { name: 'Leander', lat: 30.560, lon: -97.854 },
   { name: 'Lewisville', lat: 33.046, lon: -96.994 },
+  { name: 'Liberty', lat: 30.155, lon: -94.800 },
+  { name: 'Livingston', lat: 30.711, lon: -94.933 },
+  { name: 'Lockhart', lat: 29.885, lon: -97.670 },
+  { name: 'Longview', lat: 32.501, lon: -94.742 },
+  { name: 'Lubbock', lat: 33.578, lon: -101.856 },
+  { name: 'Lufkin', lat: 31.338, lon: -94.651 },
+  { name: 'Magnolia', lat: 30.210, lon: -95.735 },
+  { name: 'Mansfield', lat: 32.563, lon: -97.141 },
+  { name: 'Marshall', lat: 32.545, lon: -94.368 },
+  { name: 'McKinney', lat: 33.197, lon: -96.640 },
   { name: 'Mesquite', lat: 32.767, lon: -96.599 },
+  { name: 'Midlothian', lat: 32.482, lon: -96.994 },
+  { name: 'Mineral Wells', lat: 32.808, lon: -98.113 },
+  { name: 'Missouri City', lat: 29.615, lon: -95.538 },
+  { name: 'Mount Pleasant', lat: 33.157, lon: -94.967 },
+  { name: 'Nacogdoches', lat: 31.606, lon: -94.656 },
+  { name: 'Navasota', lat: 30.388, lon: -96.088 },
+  { name: 'New Braunfels', lat: 29.703, lon: -98.124 },
+  { name: 'North Richland Hills', lat: 32.834, lon: -97.229 },
+  { name: 'Odessa', lat: 31.846, lon: -102.368 },
+  { name: 'Palestine', lat: 31.762, lon: -95.631 },
+  { name: 'Palacios', lat: 28.708, lon: -96.217 },
+  { name: 'Paris', lat: 33.661, lon: -95.556 },
+  { name: 'Pasadena', lat: 29.731, lon: -95.151 },
+  { name: 'Pearland', lat: 29.564, lon: -95.286 },
+  { name: 'Pflugerville', lat: 30.439, lon: -97.620 },
+  { name: 'Plano', lat: 33.020, lon: -96.699 },
+  { name: 'Port Lavaca', lat: 28.615, lon: -96.626 },
+  { name: 'Prairie View', lat: 30.097, lon: -96.010 },
+  { name: 'Princeton', lat: 33.180, lon: -96.500 },
+  { name: 'Prosper', lat: 33.236, lon: -96.802 },
   { name: 'Richardson', lat: 32.948, lon: -96.729 },
+  { name: 'Richmond', lat: 29.582, lon: -95.760 },
   { name: 'Rockwall', lat: 32.931, lon: -96.459 },
+  { name: 'Rosenberg', lat: 29.557, lon: -95.809 },
+  { name: 'Round Rock', lat: 30.508, lon: -97.679 },
   { name: 'Rowlett', lat: 32.903, lon: -96.564 },
+  { name: 'San Angelo', lat: 31.464, lon: -100.437 },
+  { name: 'San Antonio', lat: 29.425, lon: -98.494 },
+  { name: 'San Marcos', lat: 29.883, lon: -97.940 },
+  { name: 'Seguin', lat: 29.569, lon: -97.968 },
+  { name: 'Sherman', lat: 33.636, lon: -96.609 },
+  { name: 'Socorro', lat: 31.655, lon: -106.278 },
+  { name: 'Southlake', lat: 32.941, lon: -97.134 },
+  { name: 'Spring', lat: 30.080, lon: -95.416 },
+  { name: 'Stafford', lat: 29.615, lon: -95.557 },
+  { name: 'Stephenville', lat: 32.221, lon: -98.202 },
+  { name: 'Sugar Land', lat: 29.619, lon: -95.635 },
+  { name: 'Sulphur Springs', lat: 33.138, lon: -95.601 },
+  { name: 'Sunnyvale', lat: 32.757, lon: -96.561 },
+  { name: 'Temple', lat: 31.098, lon: -97.343 },
+  { name: 'Terrell', lat: 32.736, lon: -96.267 },
+  { name: 'Texarkana', lat: 33.442, lon: -94.048 },
+  { name: 'The Woodlands', lat: 30.158, lon: -95.470 },
+  { name: 'Tomball', lat: 30.097, lon: -95.616 },
+  { name: 'Tyler', lat: 32.351, lon: -95.301 },
+  { name: 'Uvalde', lat: 29.215, lon: -99.787 },
+  { name: 'Victoria', lat: 28.805, lon: -96.986 },
+  { name: 'Waco', lat: 31.549, lon: -97.147 },
+  { name: 'Waller', lat: 30.027, lon: -95.927 },
+  { name: 'Weatherford', lat: 32.759, lon: -97.801 },
+  { name: 'Wharton', lat: 29.312, lon: -96.103 },
+  { name: 'White Settlement', lat: 32.759, lon: -97.448 },
+  { name: 'Wichita Falls', lat: 33.914, lon: -98.493 },
 ];
 
 function toRad(deg) { return deg * Math.PI / 180; }
@@ -71,15 +169,28 @@ function minDistanceToRoute(lat, lon, points) {
   return min;
 }
 
-function suggestCitiesByLine(fromLat, fromLon, toLat, toLon) {
-  const midLat = (parseFloat(fromLat) + parseFloat(toLat)) / 2;
-  const midLon = (parseFloat(fromLon) + parseFloat(toLon)) / 2;
+function suggestCitiesByLine(fromLat, fromLon, toLat, toLon, stops) {
+  const waypoints = [{ lat: parseFloat(fromLat), lon: parseFloat(fromLon) }];
+  if (Array.isArray(stops)) {
+    for (const s of stops) {
+      if (s.lat && s.lon) waypoints.push({ lat: parseFloat(s.lat), lon: parseFloat(s.lon) });
+    }
+  }
+  waypoints.push({ lat: parseFloat(toLat), lon: parseFloat(toLon) });
   return ROUTE_CITIES
     .filter(c => {
-      const d1 = haversineKm(c.lat, c.lon, parseFloat(fromLat), parseFloat(fromLon));
-      const d2 = haversineKm(c.lat, c.lon, parseFloat(toLat), parseFloat(toLon));
-      const dMid = haversineKm(c.lat, c.lon, midLat, midLon);
-      return dMid < d1 && dMid < d2 && dMid <= 80;
+      let minDist = Infinity;
+      for (let i = 0; i < waypoints.length - 1; i++) {
+        const a = waypoints[i], b = waypoints[i + 1];
+        const midLat = (a.lat + b.lat) / 2;
+        const midLon = (a.lon + b.lon) / 2;
+        const d1 = haversineKm(c.lat, c.lon, a.lat, a.lon);
+        const d2 = haversineKm(c.lat, c.lon, b.lat, b.lon);
+        const dMid = haversineKm(c.lat, c.lon, midLat, midLon);
+        if (dMid < d1 && dMid < d2 && dMid < minDist) minDist = dMid;
+        if (d1 <= 16.1 || d2 <= 16.1) minDist = 0;
+      }
+      return minDist <= 80;
     })
     .map(c => `${c.name}, TX`);
 }
@@ -138,13 +249,22 @@ router.get('/driver/mine', authMiddleware, requireRole('driver'), async (req, re
 router.get('/suggest-checkpoints', async (req, res) => {
   try {
     const { from_lat, from_lon, to_lat, to_lon } = req.query;
+    let stops = [];
+    try { stops = JSON.parse(req.query.stops || '[]'); } catch {}
     if (!from_lat || !from_lon || !to_lat || !to_lon) {
       return res.status(400).json({ error: 'Missing coordinates' });
     }
     const apiKey = process.env.ORS_API_KEY;
     if (apiKey) {
       try {
-        const orsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${from_lon},${from_lat}&end=${to_lon},${to_lat}`;
+        let orsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&start=${from_lon},${from_lat}&end=${to_lon},${to_lat}`;
+        if (stops.length > 0) {
+          const wp = stops.map(s => `${s.lon},${s.lat}`).join(';');
+          orsUrl += `&coordinates=${from_lon},${from_lat};${wp};${to_lon},${to_lat}`;
+          orsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}`;
+          const coords_param = `${from_lon},${from_lat};${wp};${to_lon},${to_lat}`;
+          orsUrl = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}&coordinates=${coords_param}`;
+        }
         const orsRes = await fetch(orsUrl);
         if (orsRes.ok) {
           const orsData = await orsRes.json();
@@ -165,7 +285,7 @@ router.get('/suggest-checkpoints', async (req, res) => {
         console.log('[SUGGEST_CHECKPOINTS] ORS error:', orsErr.message);
       }
     }
-    return res.json(suggestCitiesByLine(from_lat, from_lon, to_lat, to_lon));
+    return res.json(suggestCitiesByLine(from_lat, from_lon, to_lat, to_lon, stops));
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
